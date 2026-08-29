@@ -29,7 +29,7 @@
     <?= $content ?>
 
     <footer class="footer">
-        <span>Local data only · Kit API key stays server-side</span>
+        <span>Local data only · Kit credentials stay server-side</span>
         <a href="https://developers.kit.com/api-reference/subscribers/list-subscribers" target="_blank" rel="noreferrer">Kit API docs ↗</a>
     </footer>
 </div>

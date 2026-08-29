@@ -4,5 +4,5 @@
 storage/*.sqlite
 storage/*.sqlite-*
 storage/*.log
+storage/.credentials.key
 .DS_Store
-

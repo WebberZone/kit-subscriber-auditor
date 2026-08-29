@@ -8,19 +8,36 @@ $temporary = sys_get_temp_dir() . '/kit-audit-test-' . bin2hex(random_bytes(6));
 mkdir($temporary, 0700, true);
 mkdir($temporary . '/migrations', 0700, true);
 copy($root . '/database/migrations/001_initial.sql', $temporary . '/migrations/001_initial.sql');
+copy($root . '/database/migrations/002_credentials.sql', $temporary . '/migrations/002_credentials.sql');
 
 require_once $root . '/app/Config.php';
 require_once $root . '/app/Database.php';
+require_once $root . '/app/CredentialStore.php';
 require_once $root . '/app/helpers.php';
 require_once $root . '/app/Settings.php';
 require_once $root . '/app/AuditService.php';
 
 use KitAudit\AuditService;
+use KitAudit\Config;
+use KitAudit\CredentialStore;
 use KitAudit\Database;
 use KitAudit\Settings;
 
 $database = new Database($temporary . '/app.sqlite');
 $database->migrate($temporary . '/migrations');
+$credentials = new CredentialStore($database, new Config([]), $temporary . '/credentials.key');
+$credentials->saveApiKey('test-kit-key-123');
+if (!$credentials->hasStoredApiKey() || $credentials->apiKey() !== 'test-kit-key-123' || $credentials->apiKeySource() !== 'encrypted SQLite') {
+    throw new RuntimeException('Credential encryption test failed.');
+}
+$encrypted = (string) ($database->fetchOne('SELECT encrypted_api_key FROM credentials WHERE id = 1')['encrypted_api_key'] ?? '');
+if ($encrypted === '' || str_contains($encrypted, 'test-kit-key-123')) {
+    throw new RuntimeException('Credential storage test failed.');
+}
+$credentials->clearStoredApiKey();
+if ($credentials->hasStoredApiKey()) {
+    throw new RuntimeException('Credential removal test failed.');
+}
 $settingsStore = new Settings($database);
 $settings = $settingsStore->all();
 $now = new DateTimeImmutable('now', new DateTimeZone('UTC'));

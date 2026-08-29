@@ -29,7 +29,36 @@ final class Config
 
     public function hasApiKey(): bool
     {
-        return $this->apiKey() !== '' && $this->apiKey() !== 'replace-with-your-kit-v4-api-key';
+        return $this->apiKey() !== '';
+    }
+
+    public function appUrl(): string
+    {
+        $appUrl = trim($this->get('APP_URL'));
+        return rtrim($appUrl !== '' ? $appUrl : 'http://kit-subscriber-auditor.test', '/');
+    }
+
+    public function oauthClientId(): string
+    {
+        $clientId = trim($this->get('KIT_OAUTH_CLIENT_ID'));
+        return $clientId !== '' ? $clientId : 'HXZlOCj-K5r0ufuWCtyoyo3f688VmMAYSsKg1eGvw0Y';
+    }
+
+    public function oauthRedirectUri(): string
+    {
+        $redirectUri = trim($this->get('KIT_OAUTH_REDIRECT_URI'));
+        return $redirectUri !== '' ? $redirectUri : 'https://app.kit.com/wordpress/redirect';
+    }
+
+    public function oauthReturnUrl(): string
+    {
+        $returnUrl = trim($this->get('KIT_OAUTH_RETURN_URL'));
+        return $returnUrl !== '' ? $returnUrl : $this->appUrl() . '/oauth/callback';
+    }
+
+    public function hasOAuthConfig(): bool
+    {
+        return $this->oauthClientId() !== '' && $this->oauthRedirectUri() !== '' && $this->oauthReturnUrl() !== '';
     }
 
     public function appPassword(): string
@@ -42,4 +71,3 @@ final class Config
         return $this->get('APP_ENV', 'local') === 'production';
     }
 }
-
