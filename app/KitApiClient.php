@@ -126,7 +126,7 @@ final class KitApiClient
 
             if ($rawResponse === false) {
                 $lastError = 'Network error while contacting Kit: ' . ($curlError ?: 'unknown cURL error');
-                if ($attempt < self::MAX_ATTEMPTS - 1) {
+                if ($method === 'GET' && $attempt < self::MAX_ATTEMPTS - 1) {
                     $this->backoff($attempt);
                     continue;
                 }
@@ -153,7 +153,7 @@ final class KitApiClient
 
             $errors = $this->decodeErrors($rawResponse);
             $lastError = $errors[0] ?? ('Kit API returned HTTP ' . $statusCode . '.');
-            $retryable = $statusCode === 429 || $statusCode >= 500;
+            $retryable = $statusCode === 429 || ($method === 'GET' && $statusCode >= 500);
             if ($retryable && $attempt < self::MAX_ATTEMPTS - 1) {
                 $retryAfter = isset($responseHeaders['retry-after']) ? (int) $responseHeaders['retry-after'] : null;
                 $this->backoff($attempt, $retryAfter);

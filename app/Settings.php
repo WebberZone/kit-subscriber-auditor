@@ -10,6 +10,7 @@ final class Settings
     private const DEFAULTS = [
         'inactivity_threshold_days' => '180',
         'min_emails_sent' => '5',
+        'min_sends_since_engagement' => '6',
         'batch_size' => '50',
         'stats_refresh_hours' => '24',
         'dry_run' => '1',
@@ -47,12 +48,14 @@ final class Settings
     {
         $threshold = $this->boundedInt($input['inactivity_threshold_days'] ?? 180, 1, 3650);
         $minSent = $this->boundedInt($input['min_emails_sent'] ?? 5, 0, 100000);
+        $minSendsSinceEngagement = $this->boundedInt($input['min_sends_since_engagement'] ?? 6, 0, 100000);
         $batchSize = $this->boundedInt($input['batch_size'] ?? 50, 1, 100);
         $statsRefreshHours = $this->boundedInt($input['stats_refresh_hours'] ?? 24, 1, 8760);
         $dryRun = isset($input['dry_run']) ? 1 : 0;
         $values = [
             'inactivity_threshold_days' => $threshold,
             'min_emails_sent' => $minSent,
+            'min_sends_since_engagement' => $minSendsSinceEngagement,
             'batch_size' => $batchSize,
             'stats_refresh_hours' => $statsRefreshHours,
             'dry_run' => $dryRun,

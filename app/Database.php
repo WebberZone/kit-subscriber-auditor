@@ -17,6 +17,7 @@ final class Database
         if (!is_dir($directory) && !mkdir($directory, 0770, true) && !is_dir($directory)) {
             throw new PDOException('Unable to create the SQLite storage directory.');
         }
+        chmod($directory, 0700);
 
         $this->pdo = new PDO('sqlite:' . $path, null, null, [
             PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,

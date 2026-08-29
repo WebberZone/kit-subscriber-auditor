@@ -86,7 +86,7 @@ function format_percent(mixed $value): string
 function csv_safe(mixed $value): string
 {
     $value = (string) ($value ?? '');
-    if ($value !== '' && in_array($value[0], ['=', '+', '-', '@'], true)) {
+    if ($value !== '' && preg_match('/\A[\x00-\x20]*[=+\-@]/', $value) === 1) {
         return "'" . $value;
     }
 

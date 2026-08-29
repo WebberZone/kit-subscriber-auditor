@@ -20,10 +20,14 @@ $path = rtrim($path, '/') ?: '/';
 $method = strtoupper($_SERVER['REQUEST_METHOD'] ?? 'GET');
 $auth = new Authentication($config);
 $host = strtolower((string) ($_SERVER['HTTP_HOST'] ?? ''));
-$isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || (($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https');
+$forwardedHttps = $config->trustsProxy() && strtolower(trim(explode(',', (string) ($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? ''), 2)[0])) === 'https';
+$isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || $forwardedHttps;
 if (str_ends_with(strtok($host, ':') ?: '', '.test') && !$isHttps) {
     header('Location: https://' . $host . ($_SERVER['REQUEST_URI'] ?? '/'), true, 308);
     exit;
+}
+if ($isHttps) {
+    header('Strict-Transport-Security: max-age=31536000');
 }
 
 try {
@@ -149,7 +153,7 @@ try {
         }
         fputcsv($output, [
             'Kit ID', 'Email', 'First name', 'State', 'Created at', 'Last sent', 'Last opened',
-            'Last clicked', 'Emails sent', 'Sends since last open', 'Open rate', 'Click rate', 'Stats updated at',
+            'Last clicked', 'Emails sent', 'Sends since last open', 'Sends since last click', 'Open rate', 'Click rate', 'Stats updated at',
         ]);
         foreach ($result['rows'] as $row) {
             fputcsv($output, [
@@ -163,6 +167,7 @@ try {
                 csv_safe($row['last_clicked']),
                 csv_safe($row['sent']),
                 csv_safe($row['sends_since_last_open']),
+                csv_safe($row['sends_since_last_click']),
                 csv_safe($row['open_rate']),
                 csv_safe($row['click_rate']),
                 csv_safe($row['stats_updated_at']),
@@ -209,7 +214,25 @@ try {
 
     if ($path === '/cleanup/step' && $method === 'POST') {
         verify_csrf();
-        json_response($cleanup->step((int) $settings['batch_size']));
+        $cleanupLock = fopen($projectRoot . '/storage/cleanup-worker.lock', 'c');
+        if ($cleanupLock === false) {
+            throw new HttpException('Unable to acquire the cleanup worker lock.', 503);
+        }
+        chmod($projectRoot . '/storage/cleanup-worker.lock', 0600);
+
+        if (!flock($cleanupLock, LOCK_EX | LOCK_NB)) {
+            fclose($cleanupLock);
+            json_response($cleanup->latestProgress());
+        }
+
+        try {
+            $cleanupProgress = $cleanup->step((int) $settings['batch_size']);
+        } finally {
+            flock($cleanupLock, LOCK_UN);
+            fclose($cleanupLock);
+        }
+
+        json_response($cleanupProgress);
     }
 
     if ($path === '/cleanup/status' && $method === 'GET') {

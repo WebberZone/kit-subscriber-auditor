@@ -28,6 +28,11 @@ use KitAudit\Database;
 use KitAudit\KitApiClient;
 use KitAudit\Settings;
 use KitAudit\SyncService;
+use function KitAudit\csv_safe;
+
+if (csv_safe(' =SUM(A1)') !== "' =SUM(A1)" || csv_safe('normal@example.com') !== 'normal@example.com') {
+    throw new RuntimeException('CSV formula-injection guard test failed.');
+}
 
 $database = new Database($temporary . '/app.sqlite');
 $database->migrate($temporary . '/migrations');
@@ -46,6 +51,9 @@ if ($credentials->hasStoredApiKey()) {
 }
 $settingsStore = new Settings($database);
 $settings = $settingsStore->all();
+if ($settings['min_sends_since_engagement'] !== 6) {
+    throw new RuntimeException('Minimum sends since engagement setting default test failed.');
+}
 if ($settings['stats_refresh_hours'] !== 24) {
     throw new RuntimeException('Stats refresh setting default test failed.');
 }
@@ -91,10 +99,15 @@ $database->execute(
      VALUES (4, :email, :name, :state, :created, :sent, :updated, :created_local)',
     ['email' => 'recent-cold@example.com', 'name' => 'Recent cold', 'state' => 'active', 'created' => $recent, 'sent' => 10, 'updated' => $now->format('c'), 'created_local' => $now->format('c')]
 );
+$database->execute(
+    'INSERT INTO subscribers (id, email_address, first_name, state, created_at, sent, last_opened, last_clicked, sends_since_last_open, sends_since_last_click, updated_local_at, created_local_at)
+     VALUES (5, :email, :name, :state, :created, :sent, :last_opened, :last_clicked, :sends_open, :sends_click, :updated, :created_local)',
+    ['email' => 'not-cold-enough@example.com', 'name' => 'Not cold enough', 'state' => 'active', 'created' => $old, 'sent' => 10, 'last_opened' => $old, 'last_clicked' => $old, 'sends_open' => 5, 'sends_click' => 5, 'updated' => $now->format('c'), 'created_local' => $now->format('c')]
+);
 
 $audit = new AuditService($database);
 $metrics = $audit->dashboardMetrics($settings);
-if ($metrics['total_active'] !== 3 || $metrics['removal_candidates'] !== 1 || $metrics['very_cold'] !== 2) {
+if ($metrics['total_active'] !== 4 || $metrics['removal_candidates'] !== 1 || $metrics['very_cold'] !== 3) {
     throw new RuntimeException('Audit metrics test failed.');
 }
 $result = $audit->subscribers(['group' => 'removal', 'page' => 1], $settings);
@@ -104,6 +117,10 @@ if ($result['total'] !== 1 || $result['rows'][0]['email_address'] !== 'cold@exam
 $candidates = $audit->removalCandidatesByIds([1, 2, 999], $settings);
 if (count($candidates) !== 1 || (int) $candidates[0]['id'] !== 1) {
     throw new RuntimeException('Candidate revalidation test failed.');
+}
+$cadenceCandidates = $audit->removalCandidatesByIds([1, 5], $settings);
+if (count($cadenceCandidates) !== 1 || (int) $cadenceCandidates[0]['id'] !== 1) {
+    throw new RuntimeException('Broadcast cadence cold-check test failed.');
 }
 
 echo "Audit service tests passed.\n";

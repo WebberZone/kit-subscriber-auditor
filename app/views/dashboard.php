@@ -132,7 +132,7 @@ ob_start();
                 <table>
                     <thead><tr>
                         <?php if ($filters['group'] === 'removal'): ?><th class="check-col"><span class="sr-only">Select</span></th><?php endif; ?>
-                        <th>Subscriber</th><th>Subscribed</th><th>Last open</th><th>Last click</th><th>Sent</th><th>Since open</th><th>Rates</th>
+                        <th>Subscriber</th><th>Subscribed</th><th>Last open</th><th>Last click</th><th>Sent</th><th>Since open / click</th><th>Rates</th>
                     </tr></thead>
                     <tbody>
                     <?php if ($subscriberResult['rows'] === []): ?>
@@ -146,7 +146,7 @@ ob_start();
                             <td><span title="<?= e($row['last_opened'] ?? '') ?>"><?= e(format_date($row['last_opened'])) ?></span><small><?= e(date_age($row['last_opened'])) ?></small></td>
                             <td><span title="<?= e($row['last_clicked'] ?? '') ?>"><?= e(format_date($row['last_clicked'])) ?></span><small><?= e(date_age($row['last_clicked'])) ?></small></td>
                             <td><?= $row['sent'] === null ? '—' : number_format((int) $row['sent']) ?></td>
-                            <td><?= $row['sends_since_last_open'] === null ? '—' : number_format((int) $row['sends_since_last_open']) ?></td>
+                            <td><?= $row['sends_since_last_open'] === null ? '—' : number_format((int) $row['sends_since_last_open']) ?> / <?= $row['sends_since_last_click'] === null ? '—' : number_format((int) $row['sends_since_last_click']) ?></td>
                             <td><span class="rate-chip">O <?= e(format_percent($row['open_rate'])) ?></span><span class="rate-chip">C <?= e(format_percent($row['click_rate'])) ?></span></td>
                         </tr>
                     <?php endforeach; ?>

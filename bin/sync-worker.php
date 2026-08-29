@@ -9,6 +9,7 @@ $lock = fopen($lockPath, 'c');
 if ($lock === false || !flock($lock, LOCK_EX | LOCK_NB)) {
     exit(0);
 }
+chmod($lockPath, 0600);
 
 require_once $root . '/app/bootstrap.php';
 

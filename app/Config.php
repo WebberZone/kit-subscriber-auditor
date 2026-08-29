@@ -41,4 +41,9 @@ final class Config
     {
         return $this->get('APP_ENV', 'local') === 'production';
     }
+
+    public function trustsProxy(): bool
+    {
+        return $this->get('TRUST_PROXY', '0') === '1';
+    }
 }

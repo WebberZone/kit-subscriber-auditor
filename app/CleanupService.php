@@ -16,6 +16,13 @@ final class CleanupService
     /** @return array<string, mixed> */
     public function start(array $ids, array $settings): array
     {
+        $activeSync = $this->database->fetchOne(
+            "SELECT id FROM sync_runs WHERE status IN ('running', 'pending') ORDER BY id DESC LIMIT 1"
+        );
+        if ($activeSync !== null) {
+            throw new HttpException('Wait for the active sync to finish before starting cleanup.', 409);
+        }
+
         $active = $this->database->fetchOne(
             "SELECT * FROM cleanup_jobs WHERE status IN ('pending', 'running') ORDER BY id DESC LIMIT 1"
         );

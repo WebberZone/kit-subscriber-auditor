@@ -68,9 +68,13 @@ $config = new Config(array_merge($envValues, [
 date_default_timezone_set('UTC');
 ini_set('display_errors', '0');
 ini_set('session.use_strict_mode', '1');
+$requestHost = strtolower((string) ($_SERVER['HTTP_HOST'] ?? ''));
+$requestHostName = strtok($requestHost, ':') ?: '';
+$directHttps = !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off';
+$forwardedHttps = $config->trustsProxy() && strtolower(trim(explode(',', (string) ($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? ''), 2)[0])) === 'https';
 session_set_cookie_params([
     'httponly' => true,
-    'secure' => (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off'),
+    'secure' => $directHttps || $forwardedHttps || str_ends_with($requestHostName, '.test'),
     'samesite' => 'Lax',
 ]);
 session_start();
@@ -78,6 +82,7 @@ session_start();
 header('X-Content-Type-Options: nosniff');
 header('X-Frame-Options: DENY');
 header('Referrer-Policy: no-referrer');
+header('Cache-Control: no-store, private');
 header("Content-Security-Policy: default-src 'self'; style-src 'self'; script-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'");
 
 $database = new Database($projectRoot . '/storage/app.sqlite');

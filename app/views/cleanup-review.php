@@ -10,7 +10,7 @@ ob_start();
         <section class="review-card">
             <div class="section-heading"><div><span class="section-kicker">Proposed removal list</span><h2>Selected subscribers</h2></div><a class="button button-secondary" href="/export.csv?group=removal">Export all candidates</a></div>
             <div class="review-list">
-                <?php foreach ($candidates as $row): ?><div class="review-row"><span class="avatar"><?= e(strtoupper(substr((string) ($row['first_name'] ?: $row['email_address']), 0, 1))) ?></span><span><strong><?= e($row['email_address']) ?></strong><small><?= e($row['first_name'] ?: 'No first name') ?> · <?= (int) $row['sent'] ?> emails sent · last open <?= e(format_date($row['last_opened'])) ?> · last click <?= e(format_date($row['last_clicked'])) ?></small></span></div><?php endforeach; ?>
+                <?php foreach ($candidates as $row): ?><div class="review-row"><span class="avatar"><?= e(strtoupper(substr((string) ($row['first_name'] ?: $row['email_address']), 0, 1))) ?></span><span><strong><?= e($row['email_address']) ?></strong><small><?= e($row['first_name'] ?: 'No first name') ?> · <?= (int) $row['sent'] ?> emails sent · <?= (int) ($row['sends_since_last_open'] ?? $row['sent'] ?? 0) ?> since open · <?= (int) ($row['sends_since_last_click'] ?? $row['sent'] ?? 0) ?> since click · last open <?= e(format_date($row['last_opened'])) ?> · last click <?= e(format_date($row['last_clicked'])) ?></small></span></div><?php endforeach; ?>
             </div>
             <form method="post" action="/cleanup/start" class="confirm-form" data-cleanup-start>
                 <input type="hidden" name="csrf_token" value="<?= e($csrfToken) ?>">

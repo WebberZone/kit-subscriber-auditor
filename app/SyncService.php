@@ -19,6 +19,13 @@ final class SyncService
 
     public function start(int $batchSize, bool $forceFull = false): array
     {
+        $activeCleanup = $this->database->fetchOne(
+            "SELECT id FROM cleanup_jobs WHERE status IN ('pending', 'running') ORDER BY id DESC LIMIT 1"
+        );
+        if ($activeCleanup !== null) {
+            throw new HttpException('Wait for the active cleanup job to finish before starting a sync.', 409);
+        }
+
         $active = $this->database->fetchOne(
             "SELECT * FROM sync_runs WHERE status IN ('running', 'pending') ORDER BY id DESC LIMIT 1"
         );
@@ -111,6 +118,9 @@ final class SyncService
         );
         if (!is_resource($process)) {
             throw new HttpException('Unable to start the local sync worker.', 500);
+        }
+        if (file_exists($logPath)) {
+            chmod($logPath, 0600);
         }
         proc_close($process);
     }

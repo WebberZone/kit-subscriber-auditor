@@ -145,8 +145,9 @@ final class AuditService
     public function removalReason(array $settings): string
     {
         return sprintf(
-            'No open or click in %d days; subscribed more than %d days; at least %d emails sent.',
+            'No open or click in %d days; at least %d sends since the last open and click; subscribed more than %d days; at least %d emails sent.',
             (int) $settings['inactivity_threshold_days'],
+            (int) $settings['min_sends_since_engagement'],
             (int) $settings['inactivity_threshold_days'],
             (int) $settings['min_emails_sent']
         );
@@ -164,6 +165,8 @@ final class AuditService
             'removal_cutoff_click' => $cutoff,
             'removal_cutoff_created' => $cutoff,
             'removal_min_sent' => (int) $settings['min_emails_sent'],
+            'removal_min_sends_since_open' => (int) $settings['min_sends_since_engagement'],
+            'removal_min_sends_since_click' => (int) $settings['min_sends_since_engagement'],
         ];
     }
 
@@ -172,7 +175,9 @@ final class AuditService
         return '(last_opened IS NULL OR last_opened < :removal_cutoff_open)'
             . ' AND (last_clicked IS NULL OR last_clicked < :removal_cutoff_click)'
             . ' AND created_at < :removal_cutoff_created'
-            . ' AND sent >= :removal_min_sent';
+            . ' AND sent >= :removal_min_sent'
+            . ' AND COALESCE(sends_since_last_open, sent, 0) >= CAST(:removal_min_sends_since_open AS INTEGER)'
+            . ' AND COALESCE(sends_since_last_click, sent, 0) >= CAST(:removal_min_sends_since_click AS INTEGER)';
     }
 
     private function removalWherePositional(): string
@@ -180,7 +185,9 @@ final class AuditService
         return '(last_opened IS NULL OR last_opened < ?)'
             . ' AND (last_clicked IS NULL OR last_clicked < ?)'
             . ' AND created_at < ?'
-            . ' AND sent >= ?';
+            . ' AND sent >= ?'
+            . ' AND COALESCE(sends_since_last_open, sent, 0) >= CAST(? AS INTEGER)'
+            . ' AND COALESCE(sends_since_last_click, sent, 0) >= CAST(? AS INTEGER)';
     }
 
     /** @return list<string|int> */
@@ -192,6 +199,8 @@ final class AuditService
             $params['removal_cutoff_click'],
             $params['removal_cutoff_created'],
             $params['removal_min_sent'],
+            $params['removal_min_sends_since_open'],
+            $params['removal_min_sends_since_click'],
         ];
     }
 
