@@ -6,6 +6,8 @@ namespace KitAudit;
 
 final class SyncService
 {
+    private const STATS_REQUEST_INTERVAL_SECONDS = 0.55;
+
     public function __construct(
         private readonly Database $database,
         private readonly KitApiClient $kit,
@@ -325,10 +327,60 @@ final class SyncService
             'processed' => $processed,
             'failed' => (int) ($queue['failed'] ?? 0),
             'percent' => $percent,
-            'message' => $run['error_message'] ?: $run['last_message'],
+            'message' => $this->progressMessage($run, $processed, $total),
+            'elapsed_seconds' => $this->elapsedSeconds($run['started_at']),
+            'estimated_remaining_seconds' => $this->estimatedRemainingSeconds($run, $processed, $total),
             'started_at' => $run['started_at'],
             'finished_at' => $run['finished_at'],
         ];
     }
-}
 
+    /** @param array<string, mixed> $run */
+    private function progressMessage(array $run, int $processed, int $total): string
+    {
+        $message = (string) ($run['error_message'] ?: $run['last_message']);
+        if ($run['status'] !== 'running' || $run['phase'] !== 'fetching_stats' || $total < 1) {
+            return $message;
+        }
+
+        $remaining = $this->estimatedRemainingSeconds($run, $processed, $total);
+        return sprintf(
+            'Fetching subscriber stats — %d of %d complete. About %s remaining at the Kit API-key rate.',
+            $processed,
+            $total,
+            $this->formatDuration($remaining)
+        );
+    }
+
+    private function elapsedSeconds(mixed $startedAt): int
+    {
+        $started = is_string($startedAt) ? strtotime($startedAt) : false;
+        return $started === false ? 0 : max(0, time() - $started);
+    }
+
+    /** @param array<string, mixed> $run */
+    private function estimatedRemainingSeconds(array $run, int $processed, int $total): int
+    {
+        $remaining = max(0, $total - $processed);
+        if ($remaining === 0) {
+            return 0;
+        }
+        if ($processed === 0) {
+            return (int) ceil($remaining * self::STATS_REQUEST_INTERVAL_SECONDS);
+        }
+
+        $elapsed = max(1, $this->elapsedSeconds($run['started_at']));
+        return (int) ceil(($elapsed / $processed) * $remaining);
+    }
+
+    private function formatDuration(int $seconds): string
+    {
+        if ($seconds < 60) {
+            return $seconds . ' seconds';
+        }
+        $minutes = intdiv($seconds, 60);
+        $hours = intdiv($minutes, 60);
+        $minutes %= 60;
+        return $hours > 0 ? sprintf('%dh %02dm', $hours, $minutes) : $minutes . ' minutes';
+    }
+}

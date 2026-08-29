@@ -104,7 +104,7 @@ final class CleanupService
         );
         $items = $this->database->fetchAll(
             "SELECT * FROM cleanup_items WHERE job_id = :job_id AND status = 'pending' ORDER BY id ASC LIMIT "
-            . max(1, min(50, $batchSize)),
+            . max(1, min(100, $batchSize)),
             ['job_id' => $jobId]
         );
 
@@ -196,4 +196,3 @@ final class CleanupService
         ];
     }
 }
-

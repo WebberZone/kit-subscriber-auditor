@@ -32,28 +32,6 @@ final class Config
         return $this->apiKey() !== '';
     }
 
-    public function appUrl(): string
-    {
-        $appUrl = trim($this->get('APP_URL'));
-        return rtrim($appUrl !== '' ? $appUrl : 'https://kit-subscriber-auditor.test', '/');
-    }
-
-    public function oauthClientId(): string
-    {
-        return trim($this->get('KIT_OAUTH_CLIENT_ID'));
-    }
-
-    public function oauthRedirectUri(): string
-    {
-        $redirectUri = trim($this->get('KIT_OAUTH_REDIRECT_URI'));
-        return $redirectUri !== '' ? $redirectUri : $this->appUrl() . '/oauth/callback';
-    }
-
-    public function hasOAuthConfig(): bool
-    {
-        return $this->oauthClientId() !== '' && $this->oauthRedirectUri() !== '';
-    }
-
     public function appPassword(): string
     {
         return $this->get('APP_PASSWORD');

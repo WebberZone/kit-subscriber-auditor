@@ -9,7 +9,6 @@ mkdir($temporary, 0700, true);
 mkdir($temporary . '/migrations', 0700, true);
 copy($root . '/database/migrations/001_initial.sql', $temporary . '/migrations/001_initial.sql');
 copy($root . '/database/migrations/002_credentials.sql', $temporary . '/migrations/002_credentials.sql');
-copy($root . '/database/migrations/003_oauth_flows.sql', $temporary . '/migrations/003_oauth_flows.sql');
 
 require_once $root . '/app/Config.php';
 require_once $root . '/app/Database.php';
@@ -27,10 +26,6 @@ use KitAudit\Settings;
 $database = new Database($temporary . '/app.sqlite');
 $database->migrate($temporary . '/migrations');
 $credentials = new CredentialStore($database, new Config([]), $temporary . '/credentials.key');
-$credentials->saveOAuthFlow('test-state', 'test-code-verifier', 600);
-if ($credentials->consumeOAuthFlow('wrong-state') !== null || $credentials->consumeOAuthFlow('test-state') !== 'test-code-verifier' || $credentials->consumeOAuthFlow('test-state') !== null) {
-    throw new RuntimeException('OAuth flow state test failed.');
-}
 $credentials->saveApiKey('test-kit-key-123');
 if (!$credentials->hasStoredApiKey() || $credentials->apiKey() !== 'test-kit-key-123' || $credentials->apiKeySource() !== 'encrypted SQLite') {
     throw new RuntimeException('Credential encryption test failed.');

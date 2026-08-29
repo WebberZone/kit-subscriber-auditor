@@ -8,7 +8,6 @@ use KitAudit\Config;
 use KitAudit\CredentialStore;
 use KitAudit\Database;
 use KitAudit\KitApiClient;
-use KitAudit\OAuthClient;
 use KitAudit\Settings;
 use KitAudit\SyncService;
 use KitAudit\Template;
@@ -19,7 +18,6 @@ require_once __DIR__ . '/Config.php';
 require_once __DIR__ . '/Authentication.php';
 require_once __DIR__ . '/Database.php';
 require_once __DIR__ . '/CredentialStore.php';
-require_once __DIR__ . '/OAuthClient.php';
 require_once __DIR__ . '/KitApiClient.php';
 require_once __DIR__ . '/Settings.php';
 require_once __DIR__ . '/AuditService.php';
@@ -64,10 +62,7 @@ $envValues = load_env_file($projectRoot . '/.env');
 $config = new Config(array_merge($envValues, [
     'APP_ENV' => getenv('APP_ENV') !== false ? (string) getenv('APP_ENV') : ($envValues['APP_ENV'] ?? 'local'),
     'APP_PASSWORD' => getenv('APP_PASSWORD') !== false ? (string) getenv('APP_PASSWORD') : ($envValues['APP_PASSWORD'] ?? ''),
-    'APP_URL' => getenv('APP_URL') !== false ? (string) getenv('APP_URL') : ($envValues['APP_URL'] ?? ''),
     'KIT_API_KEY' => getenv('KIT_API_KEY') !== false ? (string) getenv('KIT_API_KEY') : ($envValues['KIT_API_KEY'] ?? ''),
-    'KIT_OAUTH_CLIENT_ID' => getenv('KIT_OAUTH_CLIENT_ID') !== false ? (string) getenv('KIT_OAUTH_CLIENT_ID') : ($envValues['KIT_OAUTH_CLIENT_ID'] ?? ''),
-    'KIT_OAUTH_REDIRECT_URI' => getenv('KIT_OAUTH_REDIRECT_URI') !== false ? (string) getenv('KIT_OAUTH_REDIRECT_URI') : ($envValues['KIT_OAUTH_REDIRECT_URI'] ?? ''),
 ]));
 
 date_default_timezone_set('UTC');
@@ -90,8 +85,7 @@ $database->migrate($projectRoot . '/database/migrations');
 $settingsStore = new Settings($database);
 $settings = $settingsStore->all();
 $credentials = new CredentialStore($database, $config, $projectRoot . '/storage/.credentials.key');
-$oauth = new OAuthClient($config);
-$kit = new KitApiClient($config, $credentials, $oauth);
+$kit = new KitApiClient($credentials);
 $audit = new AuditService($database);
 $sync = new SyncService($database, $kit);
 $cleanup = new CleanupService($database, $kit, $audit);

@@ -28,9 +28,7 @@ final class KitApiClient
     private float $lastRequestAt = 0.0;
 
     public function __construct(
-        private readonly Config $config,
         private readonly CredentialStore $credentials,
-        private readonly OAuthClient $oauth,
     )
     {
         if (!function_exists('curl_init')) {
@@ -75,8 +73,8 @@ final class KitApiClient
      */
     private function request(string $method, string $path, array $query = [], array|object|null $body = null): array
     {
-        if (!$this->credentials->hasAnyCredential()) {
-            throw new KitApiException('Connect Kit with OAuth or configure a Kit API key in Settings.', 0);
+        if (!$this->credentials->hasApiKey()) {
+            throw new KitApiException('Configure a Kit API key in Settings.', 0);
         }
 
         $url = self::BASE_URL . $path;
@@ -85,8 +83,6 @@ final class KitApiClient
         }
 
         $lastError = 'Kit API request failed.';
-        $oauthRefreshed = false;
-
         for ($attempt = 0; $attempt < self::MAX_ATTEMPTS; $attempt++) {
             $this->throttle();
             $responseHeaders = [];
@@ -117,7 +113,7 @@ final class KitApiClient
                     return strlen($headerLine);
                 },
             ];
-            $options[CURLOPT_HTTPHEADER] = array_merge($options[CURLOPT_HTTPHEADER], $this->authenticationHeaders());
+            $options[CURLOPT_HTTPHEADER][] = 'X-Kit-Api-Key: ' . $this->credentials->apiKey();
             if ($body !== null) {
                 $options[CURLOPT_POSTFIELDS] = json_encode($body, JSON_THROW_ON_ERROR);
                 $options[CURLOPT_HTTPHEADER][] = 'Content-Type: application/json';
@@ -158,11 +154,6 @@ final class KitApiClient
 
             $errors = $this->decodeErrors($rawResponse);
             $lastError = $errors[0] ?? ('Kit API returned HTTP ' . $statusCode . '.');
-            if ($statusCode === 401 && $this->credentials->hasOAuthTokens() && !$oauthRefreshed && $attempt < self::MAX_ATTEMPTS - 1) {
-                $this->refreshOAuthToken();
-                $oauthRefreshed = true;
-                continue;
-            }
             $retryable = $statusCode === 429 || $statusCode >= 500;
             if ($retryable && $attempt < self::MAX_ATTEMPTS - 1) {
                 $retryAfter = isset($responseHeaders['retry-after']) ? (int) $responseHeaders['retry-after'] : null;
@@ -174,48 +165,6 @@ final class KitApiClient
         }
 
         throw new KitApiException($lastError);
-    }
-
-    /** @return list<string> */
-    private function authenticationHeaders(): array
-    {
-        if ($this->credentials->hasOAuthTokens()) {
-            $expiresAt = $this->credentials->oauthExpiresAt();
-            if ($expiresAt > 0 && $expiresAt <= time() + 60) {
-                $this->refreshOAuthToken();
-            }
-            $accessToken = $this->credentials->oauthAccessToken();
-            if ($accessToken !== '') {
-                return ['Authorization: Bearer ' . $accessToken];
-            }
-        }
-
-        $apiKey = $this->credentials->apiKey();
-        if ($apiKey !== '') {
-            return ['X-Kit-Api-Key: ' . $apiKey];
-        }
-
-        throw new KitApiException('No usable Kit credential is available.', 0);
-    }
-
-    private function refreshOAuthToken(): void
-    {
-        $refreshToken = $this->credentials->oauthRefreshToken();
-        if ($refreshToken === '') {
-            throw new KitApiException('Kit OAuth needs to be reconnected.', 401);
-        }
-
-        try {
-            $tokens = $this->oauth->refreshToken($refreshToken);
-            if (!isset($tokens['refresh_token']) || trim((string) $tokens['refresh_token']) === '') {
-                $tokens['refresh_token'] = $refreshToken;
-            }
-            $this->credentials->saveOAuthTokens($tokens);
-        } catch (KitApiException $exception) {
-            throw $exception;
-        } catch (\Throwable $exception) {
-            throw new KitApiException('Kit OAuth token refresh failed. Reconnect from Settings.', 401, [], $exception);
-        }
     }
 
     private function throttle(): void

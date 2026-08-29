@@ -55,56 +55,6 @@ try {
 
     $auth->requireLogin();
 
-    if ($path === '/oauth/start' && $method === 'GET') {
-        if (!$config->hasOAuthConfig()) {
-            throw new HttpException('OAuth is not configured. Create a Kit OAuth app, register the HTTPS callback, and add KIT_OAUTH_CLIENT_ID to .env.', 422);
-        }
-        $base64Url = static fn (string $value): string => rtrim(strtr(base64_encode($value), '+/', '-_'), '=');
-        $codeVerifier = $base64Url(random_bytes(64));
-        $codeChallenge = $base64Url(hash('sha256', $codeVerifier, true));
-        $state = $base64Url(random_bytes(32));
-        $credentials->saveOAuthFlow($state, $codeVerifier);
-        redirect($oauth->authorizationUrl($state, $codeChallenge));
-    }
-
-    if ($path === '/oauth/callback' && $method === 'GET') {
-        if (isset($_GET['error'])) {
-            $credentials->clearOAuthFlow();
-            flash('error', 'Kit OAuth was not completed.');
-            redirect('/settings');
-        }
-        $state = (string) ($_GET['state'] ?? '');
-        $code = (string) ($_GET['code'] ?? '');
-        error_log(sprintf(
-            'Kit OAuth callback: state=%s state_length=%d code=%s flow_matches=%s',
-            $state === '' ? 'missing' : 'present',
-            strlen($state),
-            $code === '' ? 'missing' : 'present',
-            $credentials->matchesOAuthFlow($state) ? 'yes' : 'no'
-        ));
-        $codeVerifier = $credentials->consumeOAuthFlow($state);
-        if ($code === '' || $codeVerifier === null) {
-            throw new HttpException('The Kit OAuth callback could not be verified. Start the connection again.', 422);
-        }
-        try {
-            $credentials->saveOAuthTokens($oauth->exchangeCode($code, $codeVerifier));
-        } catch (\Throwable $exception) {
-            error_log($exception->getMessage());
-            throw new HttpException('Kit OAuth connection failed. Check the OAuth settings and try again.', 502);
-        } finally {
-            $credentials->clearOAuthFlow();
-        }
-        flash('success', 'Kit is connected with OAuth.');
-        redirect('/settings');
-    }
-
-    if ($path === '/oauth/disconnect' && $method === 'POST') {
-        verify_csrf();
-        $credentials->clearOAuthTokens();
-        flash('success', 'Kit OAuth connection removed from this app.');
-        redirect('/settings');
-    }
-
     if ($path === '/' && $method === 'GET') {
         $filters = [
             'q' => trim((string) ($_GET['q'] ?? '')),
@@ -127,7 +77,7 @@ try {
             'cleanupProgress' => $cleanupProgress,
             'csrfToken' => csrf_token(),
             'flashMessages' => consume_flash(),
-            'apiConfigured' => $credentials->hasAnyCredential(),
+            'apiConfigured' => $credentials->hasApiKey(),
             'authEnabled' => $auth->enabled(),
         ]);
         exit;
@@ -137,10 +87,8 @@ try {
         $template->render('settings', [
             'pageTitle' => 'Settings',
             'settings' => $settings,
-            'apiConfigured' => $credentials->hasAnyCredential(),
+            'apiConfigured' => $credentials->hasApiKey(),
             'apiKeySource' => $credentials->apiKeySource(),
-            'oauthConfigured' => $config->hasOAuthConfig(),
-            'oauthStatus' => $credentials->oauthStatus(),
             'csrfToken' => csrf_token(),
             'flashMessages' => consume_flash(),
             'authEnabled' => $auth->enabled(),
@@ -166,8 +114,8 @@ try {
 
     if ($path === '/sync/start' && $method === 'POST') {
         verify_csrf();
-        if (!$credentials->hasAnyCredential()) {
-            throw new HttpException('Connect Kit with OAuth or configure an API key in Settings before starting a sync.', 422);
+        if (!$credentials->hasApiKey()) {
+            throw new HttpException('Configure a Kit API key in Settings before starting a sync.', 422);
         }
         json_response($sync->start((int) $settings['batch_size']));
     }
@@ -231,7 +179,7 @@ try {
             'settings' => $settings,
             'csrfToken' => csrf_token(),
             'flashMessages' => consume_flash(),
-            'apiConfigured' => $credentials->hasAnyCredential(),
+            'apiConfigured' => $credentials->hasApiKey(),
             'authEnabled' => $auth->enabled(),
         ]);
         exit;
@@ -246,8 +194,8 @@ try {
         if (empty($_POST['confirm_export'])) {
             throw new HttpException('Confirm that you reviewed or exported the proposed list.', 422);
         }
-        if (!$credentials->hasAnyCredential()) {
-            throw new HttpException('Connect Kit with OAuth or configure an API key in Settings before starting cleanup.', 422);
+        if (!$credentials->hasApiKey()) {
+            throw new HttpException('Configure a Kit API key in Settings before starting cleanup.', 422);
         }
         $ids = is_array($_SESSION['cleanup_selection'] ?? null) ? $_SESSION['cleanup_selection'] : [];
         $progress = $cleanup->start($ids, $settings);
@@ -282,13 +230,13 @@ try {
         json_response(['error' => $exception->getMessage()], $exception->status);
     }
     flash('error', $exception->getMessage());
-    redirect($path === '/settings' || str_starts_with($path, '/oauth/') ? '/settings' : ($path === '/login' ? '/login' : '/'));
+    redirect($path === '/settings' ? '/settings' : ($path === '/login' ? '/login' : '/'));
 } catch (KitApiException $exception) {
     if (str_starts_with($path, '/sync/') || str_starts_with($path, '/cleanup/')) {
         json_response(['error' => $exception->getMessage()], 502);
     }
     flash('error', $exception->getMessage());
-    redirect(str_starts_with($path, '/oauth/') ? '/settings' : '/');
+    redirect('/');
 } catch (Throwable $exception) {
     error_log($exception->getMessage());
     if (str_starts_with($path, '/sync/') || str_starts_with($path, '/cleanup/')) {
