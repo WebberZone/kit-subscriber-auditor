@@ -112,6 +112,51 @@ final class CredentialStore
         ]);
     }
 
+    public function saveOAuthFlow(string $state, string $codeVerifier, int $ttl = 600): void
+    {
+        if ($state === '' || $codeVerifier === '') {
+            throw new RuntimeException('Unable to start the Kit OAuth flow.');
+        }
+
+        $this->database->execute('DELETE FROM oauth_flows');
+        $this->database->execute(
+            'INSERT INTO oauth_flows (id, state_hash, encrypted_code_verifier, expires_at, created_at)
+             VALUES (1, :state_hash, :encrypted_code_verifier, :expires_at, :created_at)',
+            [
+                'state_hash' => hash('sha256', $state),
+                'encrypted_code_verifier' => $this->encrypt($codeVerifier),
+                'expires_at' => time() + max(60, $ttl),
+                'created_at' => utc_now(),
+            ]
+        );
+    }
+
+    public function consumeOAuthFlow(string $state): ?string
+    {
+        if ($state === '') {
+            return null;
+        }
+
+        $flow = $this->database->fetchOne('SELECT * FROM oauth_flows WHERE id = 1');
+        $stateHash = hash('sha256', $state);
+        if ($flow === null || !hash_equals((string) $flow['state_hash'], $stateHash)) {
+            return null;
+        }
+
+        $this->database->execute('DELETE FROM oauth_flows WHERE id = 1');
+        if ((int) $flow['expires_at'] < time()) {
+            return null;
+        }
+
+        $verifier = $this->decrypt((string) $flow['encrypted_code_verifier']);
+        return $verifier !== '' ? $verifier : null;
+    }
+
+    public function clearOAuthFlow(): void
+    {
+        $this->database->execute('DELETE FROM oauth_flows WHERE id = 1');
+    }
+
     public function oauthAccessToken(): string
     {
         return $this->storedValue('encrypted_access_token');

@@ -67,22 +67,20 @@ try {
             'client_id' => $config->oauthClientId(),
             'nonce' => bin2hex(random_bytes(16)),
         ], JSON_THROW_ON_ERROR));
-        $_SESSION['oauth_state'] = $state;
-        $_SESSION['oauth_code_verifier'] = $codeVerifier;
+        $credentials->saveOAuthFlow($state, $codeVerifier);
         redirect($oauth->authorizationUrl($state, $codeChallenge));
     }
 
     if ($path === '/oauth/callback' && $method === 'GET') {
         if (isset($_GET['error'])) {
-            unset($_SESSION['oauth_state'], $_SESSION['oauth_code_verifier']);
+            $credentials->clearOAuthFlow();
             flash('error', 'Kit OAuth was not completed.');
             redirect('/settings');
         }
         $state = (string) ($_GET['state'] ?? '');
         $code = (string) ($_GET['code'] ?? '');
-        $expectedState = (string) ($_SESSION['oauth_state'] ?? '');
-        $codeVerifier = (string) ($_SESSION['oauth_code_verifier'] ?? '');
-        if ($state === '' || $expectedState === '' || !hash_equals($expectedState, $state) || $code === '' || $codeVerifier === '') {
+        $codeVerifier = $credentials->consumeOAuthFlow($state);
+        if ($code === '' || $codeVerifier === null) {
             throw new HttpException('The Kit OAuth callback could not be verified. Start the connection again.', 422);
         }
         try {
@@ -91,7 +89,7 @@ try {
             error_log($exception->getMessage());
             throw new HttpException('Kit OAuth connection failed. Check the OAuth settings and try again.', 502);
         } finally {
-            unset($_SESSION['oauth_state'], $_SESSION['oauth_code_verifier']);
+            $credentials->clearOAuthFlow();
         }
         flash('success', 'Kit is connected with OAuth.');
         redirect('/settings');

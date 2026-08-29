@@ -9,7 +9,7 @@
         </div>
 
         <div class="settings-row">
-            <div><strong>OAuth</strong><small><?= $oauthStatus['connected'] ? 'Connected with an encrypted access and refresh token.' : 'Connect the Kit account already signed in to Chrome.' ?></small></div>
+            <div><strong>OAuth</strong><small><?= $oauthStatus['connected'] ? 'Connected with an encrypted access and refresh token.' : 'Authorize this local app through Kit. No API key is required.' ?></small></div>
             <?php if ($oauthStatus['connected'] && (int) ($oauthStatus['expires_at'] ?? 0) > 0): ?><small>Token refreshes automatically before expiry (<?= e(gmdate('Y-m-d H:i', (int) $oauthStatus['expires_at'])) ?> UTC).</small><?php endif; ?>
         </div>
         <div class="form-actions">
