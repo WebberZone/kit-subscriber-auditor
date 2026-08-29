@@ -65,7 +65,6 @@ try {
         $state = $base64Url((string) json_encode([
             'return_to' => $config->oauthReturnUrl(),
             'client_id' => $config->oauthClientId(),
-            'nonce' => bin2hex(random_bytes(16)),
         ], JSON_THROW_ON_ERROR));
         $credentials->saveOAuthFlow($state, $codeVerifier);
         redirect($oauth->authorizationUrl($state, $codeChallenge));
@@ -79,6 +78,13 @@ try {
         }
         $state = (string) ($_GET['state'] ?? '');
         $code = (string) ($_GET['code'] ?? '');
+        error_log(sprintf(
+            'Kit OAuth callback: state=%s state_length=%d code=%s flow_matches=%s',
+            $state === '' ? 'missing' : 'present',
+            strlen($state),
+            $code === '' ? 'missing' : 'present',
+            $credentials->matchesOAuthFlow($state) ? 'yes' : 'no'
+        ));
         $codeVerifier = $credentials->consumeOAuthFlow($state);
         if ($code === '' || $codeVerifier === null) {
             throw new HttpException('The Kit OAuth callback could not be verified. Start the connection again.', 422);

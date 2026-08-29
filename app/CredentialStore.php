@@ -152,6 +152,18 @@ final class CredentialStore
         return $verifier !== '' ? $verifier : null;
     }
 
+    public function matchesOAuthFlow(string $state): bool
+    {
+        if ($state === '') {
+            return false;
+        }
+
+        $flow = $this->database->fetchOne('SELECT state_hash, expires_at FROM oauth_flows WHERE id = 1');
+        return $flow !== null
+            && (int) $flow['expires_at'] >= time()
+            && hash_equals((string) $flow['state_hash'], hash('sha256', $state));
+    }
+
     public function clearOAuthFlow(): void
     {
         $this->database->execute('DELETE FROM oauth_flows WHERE id = 1');

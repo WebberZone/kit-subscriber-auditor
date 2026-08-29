@@ -8,8 +8,8 @@ use RuntimeException;
 
 final class OAuthClient
 {
-    private const AUTHORIZE_URL = 'https://api.kit.com/v4/oauth/authorize';
-    private const TOKEN_URL = 'https://api.kit.com/v4/oauth/token';
+    private const AUTHORIZE_URL = 'https://app.kit.com/oauth/authorize';
+    private const TOKEN_URL = 'https://api.kit.com/oauth/token';
 
     public function __construct(private readonly Config $config)
     {
