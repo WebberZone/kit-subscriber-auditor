@@ -1,0 +1,13 @@
+{
+    "name": "webberzone/kit-subscriber-auditor",
+    "description": "Local-first Kit subscriber audit and cleanup dashboard.",
+    "type": "project",
+    "require": {
+        "php": ">=8.3"
+    },
+    "scripts": {
+        "test": "php tests/run.php",
+        "lint": "php tests/lint.php"
+    }
+}
+

@@ -1,0 +1,11 @@
+Options -Indexes
+
+RewriteEngine On
+
+# Keep application code, secrets, database files, and project metadata outside the web surface.
+RewriteRule ^(?:app|database|storage|tests|vendor|\.env)(?:/|$) - [F,L,NC]
+RewriteRule ^(?:README\.md|composer\.(?:json|lock)|\.git)(?:/|$) - [F,L,NC]
+
+RewriteRule ^assets/(.*)$ public/assets/$1 [L,NC]
+RewriteRule ^ public/index.php [L,QSA]
+
