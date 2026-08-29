@@ -57,15 +57,12 @@ try {
 
     if ($path === '/oauth/start' && $method === 'GET') {
         if (!$config->hasOAuthConfig()) {
-            throw new HttpException('OAuth is not configured. Add the Kit OAuth settings to .env.', 422);
+            throw new HttpException('OAuth is not configured. Create a Kit OAuth app, register the HTTPS callback, and add KIT_OAUTH_CLIENT_ID to .env.', 422);
         }
         $base64Url = static fn (string $value): string => rtrim(strtr(base64_encode($value), '+/', '-_'), '=');
         $codeVerifier = $base64Url(random_bytes(64));
         $codeChallenge = $base64Url(hash('sha256', $codeVerifier, true));
-        $state = $base64Url((string) json_encode([
-            'return_to' => $config->oauthReturnUrl(),
-            'client_id' => $config->oauthClientId(),
-        ], JSON_THROW_ON_ERROR));
+        $state = $base64Url(random_bytes(32));
         $credentials->saveOAuthFlow($state, $codeVerifier);
         redirect($oauth->authorizationUrl($state, $codeChallenge));
     }

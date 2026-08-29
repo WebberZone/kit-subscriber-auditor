@@ -68,7 +68,6 @@ $config = new Config(array_merge($envValues, [
     'KIT_API_KEY' => getenv('KIT_API_KEY') !== false ? (string) getenv('KIT_API_KEY') : ($envValues['KIT_API_KEY'] ?? ''),
     'KIT_OAUTH_CLIENT_ID' => getenv('KIT_OAUTH_CLIENT_ID') !== false ? (string) getenv('KIT_OAUTH_CLIENT_ID') : ($envValues['KIT_OAUTH_CLIENT_ID'] ?? ''),
     'KIT_OAUTH_REDIRECT_URI' => getenv('KIT_OAUTH_REDIRECT_URI') !== false ? (string) getenv('KIT_OAUTH_REDIRECT_URI') : ($envValues['KIT_OAUTH_REDIRECT_URI'] ?? ''),
-    'KIT_OAUTH_RETURN_URL' => getenv('KIT_OAUTH_RETURN_URL') !== false ? (string) getenv('KIT_OAUTH_RETURN_URL') : ($envValues['KIT_OAUTH_RETURN_URL'] ?? ''),
 ]));
 
 date_default_timezone_set('UTC');

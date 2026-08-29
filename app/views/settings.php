@@ -9,14 +9,14 @@
         </div>
 
         <div class="settings-row">
-            <div><strong>OAuth</strong><small><?= $oauthStatus['connected'] ? 'Connected with an encrypted access and refresh token.' : 'Authorize this local app through Kit. No API key is required.' ?></small></div>
+            <div><strong>OAuth</strong><small><?= $oauthStatus['connected'] ? 'Connected with an encrypted access and refresh token.' : 'Authorize this local app through a Kit OAuth app. No API key is required.' ?></small></div>
             <?php if ($oauthStatus['connected'] && (int) ($oauthStatus['expires_at'] ?? 0) > 0): ?><small>Token refreshes automatically before expiry (<?= e(gmdate('Y-m-d H:i', (int) $oauthStatus['expires_at'])) ?> UTC).</small><?php endif; ?>
         </div>
         <div class="form-actions">
             <?php if ($oauthConfigured): ?>
                 <a class="button button-primary" href="/oauth/start"><?= $oauthStatus['connected'] ? 'Reconnect with OAuth' : 'Connect with OAuth' ?></a>
             <?php else: ?>
-                <span class="muted">Add the OAuth settings from <code>.env.example</code> to enable account linking.</span>
+                <span class="muted">Create a Kit OAuth app and add its client ID to <code>.env</code>; its redirect URI must be the HTTPS callback shown in <code>.env.example</code>.</span>
             <?php endif; ?>
             <?php if ($oauthStatus['connected']): ?>
                 <form method="post" action="/oauth/disconnect"><input type="hidden" name="csrf_token" value="<?= e($csrfToken) ?>"><button class="button button-secondary" type="submit">Disconnect OAuth</button></form>

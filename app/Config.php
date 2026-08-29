@@ -40,25 +40,18 @@ final class Config
 
     public function oauthClientId(): string
     {
-        $clientId = trim($this->get('KIT_OAUTH_CLIENT_ID'));
-        return $clientId !== '' ? $clientId : 'HXZlOCj-K5r0ufuWCtyoyo3f688VmMAYSsKg1eGvw0Y';
+        return trim($this->get('KIT_OAUTH_CLIENT_ID'));
     }
 
     public function oauthRedirectUri(): string
     {
         $redirectUri = trim($this->get('KIT_OAUTH_REDIRECT_URI'));
-        return $redirectUri !== '' ? $redirectUri : 'https://app.kit.com/wordpress/redirect';
-    }
-
-    public function oauthReturnUrl(): string
-    {
-        $returnUrl = trim($this->get('KIT_OAUTH_RETURN_URL'));
-        return $returnUrl !== '' ? $returnUrl : $this->appUrl() . '/oauth/callback';
+        return $redirectUri !== '' ? $redirectUri : $this->appUrl() . '/oauth/callback';
     }
 
     public function hasOAuthConfig(): bool
     {
-        return $this->oauthClientId() !== '' && $this->oauthRedirectUri() !== '' && $this->oauthReturnUrl() !== '';
+        return $this->oauthClientId() !== '' && $this->oauthRedirectUri() !== '';
     }
 
     public function appPassword(): string

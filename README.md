@@ -37,7 +37,7 @@ APP_URL=http://kit-subscriber-auditor.test
 
 Set `APP_PASSWORD` to protect the dashboard with a local session login. If you leave it empty, the app has no login layer and should only be reachable from your local machine.
 
-The preferred connection is **Connect with OAuth** on the Settings page. The example configuration uses the OAuth client and hosted redirect already used by FreemKit; set `KIT_OAUTH_CLIENT_ID`, `KIT_OAUTH_REDIRECT_URI`, and `KIT_OAUTH_RETURN_URL` if you use a different Kit OAuth client. With the Kit account already signed in to Chrome, opening the OAuth link completes the account connection without putting a token in the browser or Git.
+The preferred connection is **Connect with OAuth** on the Settings page. Create a Kit OAuth app with PKCE enabled, add the exact HTTPS callback `https://kit-subscriber-auditor.test/oauth/callback` to its registered Redirect URIs, and put that app's client ID in `KIT_OAUTH_CLIENT_ID`. Do not use FreemKit's `https://app.kit.com/wordpress/redirect`: that hosted redirect is for the WordPress plugin flow and did not preserve state for this standalone app. Kit returns the authorization code and state directly to the registered callback.
 
 As a fallback, paste a Kit v4 API key into Settings. It is authenticated-encrypted in SQLite using the local key at `storage/.credentials.key`. The key file, database, WAL files, and logs are all ignored by Git. A `KIT_API_KEY` in `.env` is also supported and is never rendered to the client.
 
