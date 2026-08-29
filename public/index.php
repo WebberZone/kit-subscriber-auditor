@@ -118,7 +118,8 @@ try {
             throw new HttpException('Configure a Kit API key in Settings before starting a sync.', 422);
         }
         $batchSize = (int) $settings['batch_size'];
-        $progress = $sync->start($batchSize);
+        $forceFull = (string) ($_POST['force_full'] ?? '') === '1';
+        $progress = $sync->start($batchSize, $forceFull);
         $sync->launchWorker($batchSize, $projectRoot . '/bin/sync-worker.php', $projectRoot . '/storage/sync-worker.log');
         json_response($progress);
     }

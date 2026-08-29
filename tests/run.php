@@ -9,19 +9,25 @@ mkdir($temporary, 0700, true);
 mkdir($temporary . '/migrations', 0700, true);
 copy($root . '/database/migrations/001_initial.sql', $temporary . '/migrations/001_initial.sql');
 copy($root . '/database/migrations/002_credentials.sql', $temporary . '/migrations/002_credentials.sql');
+copy($root . '/database/migrations/004_remove_oauth.sql', $temporary . '/migrations/004_remove_oauth.sql');
+copy($root . '/database/migrations/005_incremental_sync.sql', $temporary . '/migrations/005_incremental_sync.sql');
 
 require_once $root . '/app/Config.php';
 require_once $root . '/app/Database.php';
 require_once $root . '/app/CredentialStore.php';
+require_once $root . '/app/KitApiClient.php';
 require_once $root . '/app/helpers.php';
 require_once $root . '/app/Settings.php';
 require_once $root . '/app/AuditService.php';
+require_once $root . '/app/SyncService.php';
 
 use KitAudit\AuditService;
 use KitAudit\Config;
 use KitAudit\CredentialStore;
 use KitAudit\Database;
+use KitAudit\KitApiClient;
 use KitAudit\Settings;
+use KitAudit\SyncService;
 
 $database = new Database($temporary . '/app.sqlite');
 $database->migrate($temporary . '/migrations');
@@ -40,6 +46,27 @@ if ($credentials->hasStoredApiKey()) {
 }
 $settingsStore = new Settings($database);
 $settings = $settingsStore->all();
+if ($settings['stats_refresh_hours'] !== 24) {
+    throw new RuntimeException('Stats refresh setting default test failed.');
+}
+$settingsStore->save(['stats_refresh_hours' => 48]);
+$settings = $settingsStore->all();
+if ($settings['stats_refresh_hours'] !== 48) {
+    throw new RuntimeException('Stats refresh setting save test failed.');
+}
+$sync = new SyncService($database, new KitApiClient($credentials), $settingsStore);
+$incrementalRun = $sync->start(50);
+$incrementalRow = $database->fetchOne('SELECT force_full, stats_refresh_hours FROM sync_runs WHERE id = :id', ['id' => $incrementalRun['id']]);
+if ((int) $incrementalRow['force_full'] !== 0 || (int) $incrementalRow['stats_refresh_hours'] !== 48) {
+    throw new RuntimeException('Incremental sync run configuration test failed.');
+}
+$database->execute("UPDATE sync_runs SET status = 'completed', phase = 'complete' WHERE id = :id", ['id' => $incrementalRun['id']]);
+$fullRun = $sync->start(50, true);
+$fullRow = $database->fetchOne('SELECT force_full FROM sync_runs WHERE id = :id', ['id' => $fullRun['id']]);
+if ((int) $fullRow['force_full'] !== 1) {
+    throw new RuntimeException('Full sync run configuration test failed.');
+}
+$database->execute("UPDATE sync_runs SET status = 'completed', phase = 'complete' WHERE id = :id", ['id' => $fullRun['id']]);
 $now = new DateTimeImmutable('now', new DateTimeZone('UTC'));
 $old = $now->modify('-400 days')->format('c');
 $recent = $now->modify('-10 days')->format('c');

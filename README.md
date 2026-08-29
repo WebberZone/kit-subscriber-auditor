@@ -9,9 +9,11 @@ This project uses the current Kit API v4 contract:
 - `GET https://api.kit.com/v4/subscribers` with the server-side `X-Kit-Api-Key` header. It uses cursor pagination: request the next page with `after=<end_cursor>`. Kit documents a default page size of 500 and a maximum of 1000; this app requests 1000 for subscriber pages.
 - `GET https://api.kit.com/v4/subscribers/{subscriber_id}/stats` returns `sent`, `opened`, `clicked`, `bounced`, `open_rate`, `click_rate`, `last_sent`, `last_opened`, `last_clicked`, `sends_since_last_open`, and `sends_since_last_click`.
 - `POST https://api.kit.com/v4/subscribers/{id}/unsubscribe` returns `204 No Content` and moves the subscriber to `cancelled`. Kit retains the subscriber record, history, and tags. Kit does not document a bulk unsubscribe endpoint for API-key authentication, so this app uses individually rate-limited calls.
-- Kit documents a limit of 120 requests per rolling 60 seconds for an API key. The client spaces requests by 550ms and retries transient network, `429`, and `5xx` responses with exponential backoff. Because stats are exposed per subscriber, a first sync of 3,703 subscribers requires roughly 34 minutes at the documented API-key limit.
+- Kit documents a limit of 120 requests per rolling 60 seconds for an API key. The client spaces requests by 550ms and retries transient network, `429`, and `5xx` responses with exponential backoff. This app requests all subscriber states, so a first sync of 4,702 subscribers requires a theoretical minimum of about 39 minutes and a practical baseline of about 43 minutes before response latency and retries.
 
 The official documentation pages are [List subscribers](https://developers.kit.com/api-reference/subscribers/list-subscribers), [List stats for a subscriber](https://developers.kit.com/api-reference/subscribers/list-stats-for-a-subscriber), [Unsubscribe subscriber](https://developers.kit.com/api-reference/subscribers/unsubscribe-subscriber), [Pagination](https://developers.kit.com/api-reference/pagination), [Response codes](https://developers.kit.com/api-reference/response-codes), and [Authentication](https://developers.kit.com/api-reference/authentication).
+
+Stats freshness is configurable in Settings and defaults to 24 hours. A normal sync always refreshes the subscriber list but queues only subscribers without stats or with stats older than that window. **Force full resync** deliberately bypasses the freshness check and requires confirmation.
 
 ## Local setup
 
@@ -53,7 +55,9 @@ herd link kit-subscriber-auditor
 
 Then open `https://kit-subscriber-auditor.test`. Herd should show SSL enabled for the site; HTTP requests are redirected to HTTPS. If you link the project root instead, the root `.htaccess` forwards requests to `public/index.php` and denies access to application, database, storage, test, and secret files.
 
-Open the resulting `.test` domain and click **Sync Kit now**. The first sync fetches all subscriber states, then starts a detached local PHP worker that fetches stats in batches of up to 50 by default. You can raise this to 100 in Settings. The browser polls SQLite for progress while the worker runs, so Herd request timeouts do not interrupt long batches. No cleanup occurs during sync.
+Open the resulting `.test` domain and click **Sync changes**. The first sync fetches all subscriber states, then starts a detached local PHP worker that fetches missing stats. Later normal syncs still refresh the subscriber list, but skip stats refreshed within the configured refresh window. Use **Force full resync** only when every subscriber's stats need to be fetched again; it requires a browser confirmation.
+
+The worker processes stats sequentially in batches of up to 50 by default. You can raise this to 100 in Settings, which changes local queue/progress grouping but does not bypass Kit's API-key rate limit. The browser polls SQLite for progress while the worker runs, so Herd request timeouts do not interrupt long batches. The run stores a worker PID and heartbeat; a stale heartbeat is shown in the dashboard and starting sync again safely resumes pending queue items. No cleanup occurs during sync.
 
 ## Cleanup safety
 
@@ -88,10 +92,11 @@ app/
   Database.php           SQLite connection and migrations
   KitApiClient.php       cURL client, API-key auth, throttling, retries, and API errors
   Settings.php           validated local settings
-  SyncService.php        paginated subscriber sync and stats queue
-  bin/sync-worker.php     detached local sync worker
+  SyncService.php        paginated subscriber sync, freshness policy, and stats queue
   bootstrap.php          application startup and secure response headers
   views/                 server-rendered HTML templates
+bin/
+  sync-worker.php         detached local sync worker with heartbeat
 database/migrations/     versioned SQLite schema
 public/                  web entry point and local assets
 storage/                 SQLite database (ignored by Git)

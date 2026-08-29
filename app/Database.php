@@ -104,6 +104,11 @@ final class Database
         return (int) $this->pdo->lastInsertId();
     }
 
+    public function changes(): int
+    {
+        return (int) $this->pdo->query('SELECT changes()')->fetchColumn();
+    }
+
     public function transaction(callable $callback): mixed
     {
         $this->pdo->beginTransaction();

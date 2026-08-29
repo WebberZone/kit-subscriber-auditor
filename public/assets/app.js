@@ -3,10 +3,11 @@
 
     const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
 
-    async function postJson(url) {
+    async function postJson(url, data = {}) {
         const response = await fetch(url, {
             method: 'POST',
-            headers: { 'X-CSRF-Token': csrfToken, 'Accept': 'application/json' },
+            headers: { 'X-CSRF-Token': csrfToken, 'Accept': 'application/json', 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams(data),
             credentials: 'same-origin'
         });
         const payload = await response.json().catch(() => ({ error: 'The server returned an invalid response.' }));
@@ -32,16 +33,25 @@
         const status = panel.querySelector('[data-sync-status]');
         if (status) { status.textContent = (progress.status || 'idle').replaceAll('_', ' '); status.className = `status-pill status-${progress.status || 'idle'}`; }
         const count = panel.querySelector('[data-sync-count]');
-        if (count) count.textContent = `${progress.processed || 0} / ${progress.total || 0} subscribers with stats`;
+        if (count) count.textContent = progress.count_message || `${progress.processed || 0} / ${progress.total || 0} subscribers with stats`;
         const phase = panel.querySelector('[data-sync-phase]');
         if (phase) phase.textContent = (progress.phase || 'idle').replaceAll('_', ' ');
+        const worker = panel.querySelector('[data-sync-worker]');
+        if (worker) {
+            const workerStatus = progress.worker?.status || 'not_running';
+            const workerPid = progress.worker?.pid;
+            worker.textContent = workerStatus === 'active'
+                ? `Worker active${workerPid ? ` · PID ${workerPid}` : ''}`
+                : workerStatus === 'stale' ? 'Worker heartbeat stale' : 'Worker stopped';
+            worker.className = `sync-worker-status sync-worker-${workerStatus}`;
+        }
     }
 
-    async function runSync() {
-        const button = document.querySelector('[data-sync-start]');
-        if (button) { button.disabled = true; button.textContent = 'Syncing…'; }
+    async function runSync(forceFull = false) {
+        const buttons = document.querySelectorAll('[data-sync-start]');
+        buttons.forEach(button => { button.disabled = true; button.textContent = 'Syncing…'; });
         try {
-            let progress = await postJson('/sync/start');
+            let progress = await postJson('/sync/start', { force_full: forceFull ? '1' : '0' });
             updateSync(progress);
             do {
                 await new Promise(resolve => setTimeout(resolve, 1500));
@@ -52,14 +62,17 @@
             window.setTimeout(() => window.location.reload(), 500);
         } catch (error) {
             updateSync({ status: 'failed', message: error.message, percent: 0, processed: 0, total: 0, phase: 'failed' });
-            if (button) { button.disabled = false; button.textContent = 'Retry sync'; }
+            buttons.forEach(button => { button.disabled = false; button.textContent = button.dataset.forceFull === '1' ? 'Force full resync' : 'Sync changes'; });
         }
     }
 
-    const syncButton = document.querySelector('[data-sync-start]');
-    if (syncButton) syncButton.addEventListener('click', runSync);
+    document.querySelectorAll('[data-sync-start]').forEach(button => button.addEventListener('click', function () {
+        const forceFull = this.dataset.forceFull === '1';
+        if (forceFull && !window.confirm('Force a full stats refresh for every subscriber? This may take a long time and uses the Kit API rate limit.')) return;
+        runSync(forceFull);
+    }));
     const syncPanel = document.querySelector('[data-sync-panel]');
-    if (syncPanel && syncPanel.dataset.status === 'running') runSync();
+    if (syncPanel && syncPanel.dataset.status === 'running') runSync(false);
 
     const selections = document.querySelectorAll('[data-selection]');
     const selectedCount = document.querySelector('[data-selected-count]');

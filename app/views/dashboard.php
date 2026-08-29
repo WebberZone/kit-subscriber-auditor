@@ -4,6 +4,12 @@ use function KitAudit\e;
 use function KitAudit\format_date;
 use function KitAudit\format_percent;
 use function KitAudit\query_url;
+$workerStatus = $syncProgress['worker']['status'] ?? 'not_running';
+$workerPid = $syncProgress['worker']['pid'] ?? null;
+$workerLabel = $workerStatus === 'active' ? 'Worker active' : ($workerStatus === 'stale' ? 'Worker heartbeat stale' : 'Worker stopped');
+if ($workerStatus === 'active' && $workerPid !== null) {
+    $workerLabel .= ' · PID ' . (int) $workerPid;
+}
 ob_start();
 ?>
 <main class="main">
@@ -17,7 +23,7 @@ ob_start();
             <?php if (!$apiConfigured): ?>
                 <a class="button button-warn" href="/settings">Configure Kit API key</a>
             <?php else: ?>
-                <button class="button button-primary" type="button" data-sync-start>Sync Kit now</button>
+                <div class="sync-actions"><button class="button button-primary" type="button" data-sync-start data-force-full="0">Sync changes</button><button class="button button-secondary" type="button" data-sync-start data-force-full="1">Force full resync</button></div>
             <?php endif; ?>
         </div>
     </section>
@@ -36,9 +42,10 @@ ob_start();
         </div>
         <div class="progress-track"><progress data-sync-progress max="100" value="<?= (int) ($syncProgress['percent'] ?? 0) ?>" aria-label="Sync progress"></progress></div>
         <div class="progress-meta">
-            <span data-sync-count><?= (int) ($syncProgress['processed'] ?? 0) ?> / <?= (int) ($syncProgress['total'] ?? 0) ?> subscribers with stats</span>
+            <span data-sync-count><?= e($syncProgress['count_message'] ?? ((int) ($syncProgress['processed'] ?? 0) . ' / ' . (int) ($syncProgress['total'] ?? 0) . ' subscribers with stats')) ?></span>
             <span data-sync-phase><?= e(str_replace('_', ' ', $syncProgress['phase'] ?? 'idle')) ?></span>
         </div>
+        <div class="sync-worker-row"><span data-sync-worker class="sync-worker-status sync-worker-<?= e($workerStatus) ?>"><?= e($workerLabel) ?></span><span>Stats refresh window: <?= (int) $settings['stats_refresh_hours'] ?> hours</span></div>
     </section>
 
     <section class="metric-grid" aria-label="Subscriber metrics">

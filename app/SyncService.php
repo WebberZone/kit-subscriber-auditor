@@ -8,29 +8,42 @@ final class SyncService
 {
     private const STATS_REQUEST_INTERVAL_SECONDS = 0.55;
     private const MAX_STEP_SECONDS = 45.0;
+    private const WORKER_STALE_SECONDS = 180;
 
     public function __construct(
         private readonly Database $database,
         private readonly KitApiClient $kit,
+        private readonly Settings $settings,
     ) {
     }
 
-    public function start(int $batchSize): array
+    public function start(int $batchSize, bool $forceFull = false): array
     {
         $active = $this->database->fetchOne(
             "SELECT * FROM sync_runs WHERE status IN ('running', 'pending') ORDER BY id DESC LIMIT 1"
         );
         if ($active !== null) {
-            return $this->progress((int) $active['id']);
+            $progress = $this->progress((int) $active['id']);
+            if ($forceFull && $progress['status'] === 'running' && !(bool) ($progress['force_full'] ?? false)) {
+                $progress['message'] = 'A sync is already running; the full resync was not started.';
+            }
+
+            return $progress;
         }
 
+        $settings = $this->settings->all();
         $now = utc_now();
         $this->database->execute(
-            'INSERT INTO sync_runs (status, phase, page_number, last_message, started_at, updated_at)
-             VALUES (:status, :phase, 0, :message, :started_at, :updated_at)',
+            'INSERT INTO sync_runs (
+                status, phase, page_number, force_full, stats_refresh_hours, last_message, started_at, updated_at
+             ) VALUES (
+                :status, :phase, 0, :force_full, :stats_refresh_hours, :message, :started_at, :updated_at
+             )',
             [
                 'status' => 'running',
                 'phase' => 'fetching_subscribers',
+                'force_full' => $forceFull ? 1 : 0,
+                'stats_refresh_hours' => (int) $settings['stats_refresh_hours'],
                 'message' => 'Starting subscriber sync.',
                 'started_at' => $now,
                 'updated_at' => $now,
@@ -102,6 +115,59 @@ final class SyncService
         proc_close($process);
     }
 
+    public function claimWorker(int $runId, int $workerPid): void
+    {
+        if ($workerPid < 1) {
+            return;
+        }
+
+        $now = utc_now();
+        $this->database->execute(
+            "UPDATE sync_runs SET worker_pid = :worker_pid, worker_started_at = :worker_started_at,
+             heartbeat_at = :heartbeat_at, updated_at = :updated_at
+             WHERE id = :id AND status = 'running'",
+            [
+                'worker_pid' => $workerPid,
+                'worker_started_at' => $now,
+                'heartbeat_at' => $now,
+                'updated_at' => $now,
+                'id' => $runId,
+            ]
+        );
+    }
+
+    public function heartbeat(int $runId, int $workerPid): void
+    {
+        if ($workerPid < 1) {
+            return;
+        }
+
+        $now = utc_now();
+        $this->database->execute(
+            "UPDATE sync_runs SET heartbeat_at = :heartbeat_at, updated_at = :updated_at
+             WHERE id = :id AND status = 'running' AND worker_pid = :worker_pid",
+            [
+                'heartbeat_at' => $now,
+                'updated_at' => $now,
+                'id' => $runId,
+                'worker_pid' => $workerPid,
+            ]
+        );
+    }
+
+    public function releaseWorker(int $runId, int $workerPid): void
+    {
+        if ($workerPid < 1) {
+            return;
+        }
+
+        $this->database->execute(
+            'UPDATE sync_runs SET worker_pid = NULL, worker_started_at = NULL, heartbeat_at = NULL
+             WHERE id = :id AND worker_pid = :worker_pid',
+            ['id' => $runId, 'worker_pid' => $workerPid]
+        );
+    }
+
     /** @return array<string, mixed> */
     public function latestProgress(): array
     {
@@ -121,17 +187,71 @@ final class SyncService
             throw new KitApiException('Kit returned an invalid subscriber list.');
         }
 
-        $this->database->transaction(function () use ($subscribers, $runId): void {
+        $forceFull = (int) ($run['force_full'] ?? 0) === 1;
+        $refreshHours = max(1, (int) ($run['stats_refresh_hours'] ?? 24));
+        $freshSince = (new \DateTimeImmutable('now', new \DateTimeZone('UTC')))
+            ->modify('-' . $refreshHours . ' hours')
+            ->format('c');
+        $queuedCount = 0;
+        $skippedCount = 0;
+        $seenCount = 0;
+        $queueCondition = $forceFull
+            ? '1 = 1'
+            : 'NOT EXISTS (
+                         SELECT 1 FROM subscribers
+                         WHERE id = :stats_subscriber_id
+                           AND stats_updated_at IS NOT NULL
+                           AND stats_updated_at >= :fresh_since
+                     )';
+
+        $this->database->transaction(function () use (
+            $subscribers,
+            $runId,
+            $queueCondition,
+            $freshSince,
+            &$queuedCount,
+            &$skippedCount,
+            &$seenCount
+        ): void {
             foreach ($subscribers as $subscriber) {
                 if (!is_array($subscriber) || !isset($subscriber['id'], $subscriber['email_address'], $subscriber['created_at'])) {
                     continue;
                 }
+                $seenCount++;
                 $this->upsertSubscriber($subscriber, $runId);
                 $this->database->execute(
-                    'INSERT OR IGNORE INTO sync_queue (run_id, subscriber_id, status) VALUES (:run_id, :subscriber_id, :status)',
-                    ['run_id' => $runId, 'subscriber_id' => (int) $subscriber['id'], 'status' => 'pending']
+                    'INSERT OR IGNORE INTO sync_queue (run_id, subscriber_id, status)
+                     SELECT :run_id, :subscriber_id, :status
+                     WHERE ' . $queueCondition,
+                    [
+                        'run_id' => $runId,
+                        'subscriber_id' => (int) $subscriber['id'],
+                        'status' => 'pending',
+                        ...($forceFull ? [] : [
+                            'stats_subscriber_id' => (int) $subscriber['id'],
+                            'fresh_since' => $freshSince,
+                        ]),
+                    ]
                 );
+                if ($this->database->changes() > 0) {
+                    $queuedCount++;
+                } else {
+                    $skippedCount++;
+                }
             }
+
+            $this->database->execute(
+                'UPDATE sync_runs SET subscribers_seen = subscribers_seen + :seen,
+                 stats_total_subscribers = stats_total_subscribers + :queued,
+                 stats_skipped_subscribers = stats_skipped_subscribers + :skipped
+                 WHERE id = :id',
+                [
+                    'seen' => $seenCount,
+                    'queued' => $queuedCount,
+                    'skipped' => $skippedCount,
+                    'id' => $runId,
+                ]
+            );
         });
 
         $hasNext = (bool) ($pagination['has_next_page'] ?? false);
@@ -146,6 +266,10 @@ final class SyncService
             'UPDATE sync_runs
              SET phase = :phase, page_cursor = :page_cursor, page_number = :page_number,
                  total_subscribers = COALESCE(:total_subscribers, total_subscribers),
+                 stats_started_at = CASE
+                     WHEN :phase_for_stats = \'fetching_stats\' AND stats_started_at IS NULL THEN :stats_started_at
+                     ELSE stats_started_at
+                 END,
                  last_message = :last_message, updated_at = :updated_at
              WHERE id = :id',
             [
@@ -153,7 +277,15 @@ final class SyncService
                 'page_cursor' => $nextCursor,
                 'page_number' => $pageNumber,
                 'total_subscribers' => $total,
-                'last_message' => sprintf('Fetched subscriber page %d (%d records).', $pageNumber, count($subscribers)),
+                'phase_for_stats' => $hasNext ? 'fetching_subscribers' : 'fetching_stats',
+                'stats_started_at' => $now,
+                'last_message' => sprintf(
+                    'Fetched subscriber page %d (%d records); queued %d stats and skipped %d fresh stats.',
+                    $pageNumber,
+                    $seenCount,
+                    $queuedCount,
+                    $skippedCount
+                ),
                 'updated_at' => $now,
                 'id' => $runId,
             ]
@@ -171,6 +303,12 @@ final class SyncService
         );
 
         if ($queue === []) {
+            $run = $this->database->fetchOne('SELECT * FROM sync_runs WHERE id = :id', ['id' => $runId]) ?? [];
+            $queuedStats = $this->database->fetchOne(
+                'SELECT COUNT(*) AS total FROM sync_queue WHERE run_id = :run_id',
+                ['run_id' => $runId]
+            );
+            $statsTotal = max((int) ($run['stats_total_subscribers'] ?? 0), (int) ($queuedStats['total'] ?? 0));
             $this->database->execute(
                 "UPDATE sync_runs SET status = CASE WHEN failed_subscribers > 0 THEN 'completed_with_errors' ELSE 'completed' END,
                  phase = 'complete', finished_at = :finished_at, updated_at = :updated_at,
@@ -178,7 +316,11 @@ final class SyncService
                 [
                     'finished_at' => utc_now(),
                     'updated_at' => utc_now(),
-                    'last_message' => 'Sync complete. Cached subscriber data is ready.',
+                    'last_message' => sprintf(
+                        'Sync complete. Refreshed %d stats; skipped %d fresh stats.',
+                        $statsTotal,
+                        (int) $run['stats_skipped_subscribers']
+                    ),
                     'id' => $runId,
                 ]
             );
@@ -353,8 +495,11 @@ final class SyncService
              FROM sync_queue WHERE run_id = :run_id',
             ['run_id' => $runId]
         );
-        $total = max((int) ($run['total_subscribers'] ?? 0), (int) ($queue['total'] ?? 0));
-        $processed = (int) ($queue['processed'] ?? 0);
+        $statsTotal = max((int) ($run['stats_total_subscribers'] ?? 0), (int) ($queue['total'] ?? 0));
+        $statsProcessed = (int) ($queue['processed'] ?? 0);
+        $isSubscriberPhase = $run['phase'] === 'fetching_subscribers';
+        $total = $isSubscriberPhase ? max((int) ($run['total_subscribers'] ?? 0), (int) ($run['subscribers_seen'] ?? 0)) : $statsTotal;
+        $processed = $isSubscriberPhase ? (int) ($run['subscribers_seen'] ?? 0) : $statsProcessed;
         $percent = $total > 0 ? min(100, (int) floor(($processed / $total) * 100)) : 0;
         if ($run['status'] === 'completed' || $run['status'] === 'completed_with_errors') {
             $percent = 100;
@@ -369,28 +514,70 @@ final class SyncService
             'processed' => $processed,
             'failed' => (int) ($queue['failed'] ?? 0),
             'percent' => $percent,
-            'message' => $this->progressMessage($run, $processed, $total),
+            'message' => $this->progressMessage($run, $processed, $total, $statsProcessed, $statsTotal),
+            'count_message' => $this->countMessage($run, $processed, $total, $statsProcessed, $statsTotal),
             'elapsed_seconds' => $this->elapsedSeconds($run['started_at']),
-            'estimated_remaining_seconds' => $this->estimatedRemainingSeconds($run, $processed, $total),
+            'estimated_remaining_seconds' => $isSubscriberPhase ? 0 : $this->estimatedRemainingSeconds($run, $statsProcessed, $statsTotal),
+            'subscriber_total' => (int) ($run['total_subscribers'] ?? 0),
+            'subscribers_seen' => (int) ($run['subscribers_seen'] ?? 0),
+            'stats_total' => $statsTotal,
+            'stats_processed' => $statsProcessed,
+            'stats_skipped' => (int) ($run['stats_skipped_subscribers'] ?? 0),
+            'force_full' => (int) ($run['force_full'] ?? 0) === 1,
+            'worker' => $this->workerState($run),
             'started_at' => $run['started_at'],
             'finished_at' => $run['finished_at'],
         ];
     }
 
     /** @param array<string, mixed> $run */
-    private function progressMessage(array $run, int $processed, int $total): string
+    private function progressMessage(array $run, int $processed, int $total, int $statsProcessed, int $statsTotal): string
     {
         $message = (string) ($run['error_message'] ?: $run['last_message']);
-        if ($run['status'] !== 'running' || $run['phase'] !== 'fetching_stats' || $total < 1) {
+        if ($run['status'] !== 'running') {
             return $message;
         }
 
-        $remaining = $this->estimatedRemainingSeconds($run, $processed, $total);
+        if ($run['phase'] === 'fetching_subscribers') {
+            return sprintf(
+                'Fetching subscribers — %d of %d discovered.',
+                $processed,
+                max($total, $processed)
+            );
+        }
+
+        if ($run['phase'] !== 'fetching_stats') {
+            return $message;
+        }
+
+        if ($statsTotal < 1) {
+            return sprintf(
+                'No stats refresh needed — %d subscribers already have fresh stats.',
+                (int) ($run['stats_skipped_subscribers'] ?? 0)
+            );
+        }
+
+        $remaining = $this->estimatedRemainingSeconds($run, $statsProcessed, $statsTotal);
         return sprintf(
             'Fetching subscriber stats — %d of %d complete. About %s remaining at the Kit API-key rate.',
-            $processed,
-            $total,
+            $statsProcessed,
+            $statsTotal,
             $this->formatDuration($remaining)
+        );
+    }
+
+    /** @param array<string, mixed> $run */
+    private function countMessage(array $run, int $processed, int $total, int $statsProcessed, int $statsTotal): string
+    {
+        if ($run['phase'] === 'fetching_subscribers') {
+            return sprintf('%d / %d subscribers discovered', $processed, $total);
+        }
+
+        return sprintf(
+            '%d / %d stats refreshed · %d skipped as fresh',
+            $statsProcessed,
+            $statsTotal,
+            (int) ($run['stats_skipped_subscribers'] ?? 0)
         );
     }
 
@@ -411,8 +598,53 @@ final class SyncService
             return (int) ceil($remaining * self::STATS_REQUEST_INTERVAL_SECONDS);
         }
 
-        $elapsed = max(1, $this->elapsedSeconds($run['started_at']));
+        $elapsed = max(1, $this->elapsedSeconds($run['stats_started_at'] ?? $run['started_at']));
         return (int) ceil(($elapsed / $processed) * $remaining);
+    }
+
+    /** @param array<string, mixed> $run @return array<string, mixed> */
+    private function workerState(array $run): array
+    {
+        if ($run['status'] !== 'running') {
+            return [
+                'status' => 'not_running',
+                'pid' => null,
+                'heartbeat_at' => $run['heartbeat_at'] ?? null,
+                'age_seconds' => null,
+            ];
+        }
+
+        $pid = isset($run['worker_pid']) && $run['worker_pid'] !== null ? (int) $run['worker_pid'] : null;
+        $heartbeatAt = is_string($run['heartbeat_at'] ?? null) && $run['heartbeat_at'] !== ''
+            ? (string) $run['heartbeat_at']
+            : (string) ($run['updated_at'] ?? '');
+        $ageSeconds = $this->timestampAge($heartbeatAt);
+        $processAlive = null;
+        if ($pid !== null && $pid > 0 && function_exists('posix_kill')) {
+            $processAlive = @posix_kill($pid, 0);
+        }
+
+        $heartbeatFresh = $ageSeconds !== null && $ageSeconds <= self::WORKER_STALE_SECONDS;
+        $active = $heartbeatFresh && ($processAlive === null || $processAlive);
+
+        return [
+            'status' => $active ? 'active' : 'stale',
+            'pid' => $pid,
+            'heartbeat_at' => $heartbeatAt !== '' ? $heartbeatAt : null,
+            'age_seconds' => $ageSeconds,
+            'process_alive' => $processAlive,
+            'source' => $pid === null ? 'database_timestamp' : 'worker_heartbeat',
+        ];
+    }
+
+    private function timestampAge(string $timestamp): ?int
+    {
+        if ($timestamp === '') {
+            return null;
+        }
+
+        $parsed = strtotime($timestamp);
+        return $parsed === false ? null : max(0, time() - $parsed);
     }
 
     private function formatDuration(int $seconds): string

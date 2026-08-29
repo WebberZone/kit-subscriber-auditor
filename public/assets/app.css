@@ -50,6 +50,7 @@ h2 { font-size: 1.55rem; }
 .button-danger:hover { background: #913a3a; }
 .button-warn { color: #57331f; background: var(--orange); }
 .button:disabled { cursor: not-allowed; opacity: .42; }
+.sync-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
 .notice, .flash { border: 1px solid var(--line); border-radius: 10px; padding: 13px 16px; margin-bottom: 18px; font-size: .9rem; line-height: 1.45; }
 .notice-warn, .flash-error { color: #63351f; background: #fff2e7; border-color: #f2cdb6; }
 .notice-danger { color: #702c2c; background: #ffeded; border-color: #ecc4c4; }
@@ -69,6 +70,11 @@ h2 { font-size: 1.55rem; }
 .progress-track progress::-webkit-progress-value { border-radius: inherit; background: linear-gradient(90deg, #78bc8d, #2f7952); transition: width .25s ease; }
 .progress-track progress::-moz-progress-bar { border-radius: inherit; background: linear-gradient(90deg, #78bc8d, #2f7952); }
 .progress-meta { color: var(--muted); font-size: .76rem; }
+.sync-worker-row { display: flex; justify-content: space-between; gap: 15px; margin-top: 12px; color: var(--muted); font-size: .73rem; }
+.sync-worker-status { font-weight: 750; }
+.sync-worker-active { color: var(--mint-deep); }
+.sync-worker-stale { color: var(--danger); }
+.sync-worker-not_running { color: var(--muted); }
 .metric-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 24px; }
 .metric-card { display: flex; flex-direction: column; min-height: 126px; gap: 7px; background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 18px; text-decoration: none; transition: transform .15s ease, box-shadow .15s ease; }
 .metric-card:hover { transform: translateY(-2px); box-shadow: var(--shadow); }
@@ -157,6 +163,8 @@ input[type="checkbox"] { accent-color: var(--mint-deep); width: 16px; height: 16
     .metric-card strong { font-size: 1.65rem; }
     .table-section, .settings-card, .review-card, .info-card { padding: 16px; }
     .section-heading { align-items: flex-start; flex-direction: column; }
+    .sync-actions { justify-content: flex-start; }
+    .sync-worker-row { align-items: flex-start; flex-direction: column; gap: 5px; }
     .filters { grid-template-columns: 1fr; }
     .search-field { grid-column: auto; }
     .filters .button { width: 100%; }

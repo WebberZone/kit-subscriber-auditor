@@ -87,6 +87,6 @@ $settings = $settingsStore->all();
 $credentials = new CredentialStore($database, $config, $projectRoot . '/storage/.credentials.key');
 $kit = new KitApiClient($credentials);
 $audit = new AuditService($database);
-$sync = new SyncService($database, $kit);
+$sync = new SyncService($database, $kit, $settingsStore);
 $cleanup = new CleanupService($database, $kit, $audit);
 $template = new Template($projectRoot . '/app/views');
