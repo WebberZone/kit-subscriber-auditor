@@ -35,7 +35,7 @@ final class Config
     public function appUrl(): string
     {
         $appUrl = trim($this->get('APP_URL'));
-        return rtrim($appUrl !== '' ? $appUrl : 'http://kit-subscriber-auditor.test', '/');
+        return rtrim($appUrl !== '' ? $appUrl : 'https://kit-subscriber-auditor.test', '/');
     }
 
     public function oauthClientId(): string

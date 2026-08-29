@@ -54,7 +54,7 @@ cd public
 herd link kit-subscriber-auditor
 ```
 
-Then open `http://kit-subscriber-auditor.test`. If you link the project root instead, the root `.htaccess` forwards requests to `public/index.php` and denies access to application, database, storage, test, and secret files.
+Then open `https://kit-subscriber-auditor.test`. Herd should show SSL enabled for the site; HTTP requests are redirected to HTTPS. If you link the project root instead, the root `.htaccess` forwards requests to `public/index.php` and denies access to application, database, storage, test, and secret files.
 
 Open the resulting `.test` domain and click **Sync Kit now**. The first sync fetches all subscriber states, then fetches stats in small batches. No cleanup occurs during sync.
 

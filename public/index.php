@@ -19,6 +19,12 @@ $path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
 $path = rtrim($path, '/') ?: '/';
 $method = strtoupper($_SERVER['REQUEST_METHOD'] ?? 'GET');
 $auth = new Authentication($config);
+$host = strtolower((string) ($_SERVER['HTTP_HOST'] ?? ''));
+$isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || (($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https');
+if (str_ends_with(strtok($host, ':') ?: '', '.test') && !$isHttps) {
+    header('Location: https://' . $host . ($_SERVER['REQUEST_URI'] ?? '/'), true, 308);
+    exit;
+}
 
 try {
     if ($path === '/login' && $method === 'GET') {
