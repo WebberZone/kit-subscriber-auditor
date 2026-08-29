@@ -47,6 +47,12 @@
         }
     }
 
+    function setSyncButtonLabel() {
+        const button = document.querySelector('[data-sync-start]');
+        const forceFull = document.querySelector('[data-sync-force-full]')?.checked || false;
+        if (button) button.textContent = forceFull ? 'Force full resync' : 'Sync changes';
+    }
+
     async function runSync(forceFull = false) {
         const buttons = document.querySelectorAll('[data-sync-start]');
         buttons.forEach(button => { button.disabled = true; button.textContent = 'Syncing…'; });
@@ -62,15 +68,19 @@
             window.setTimeout(() => window.location.reload(), 500);
         } catch (error) {
             updateSync({ status: 'failed', message: error.message, percent: 0, processed: 0, total: 0, phase: 'failed' });
-            buttons.forEach(button => { button.disabled = false; button.textContent = button.dataset.forceFull === '1' ? 'Force full resync' : 'Sync changes'; });
+            buttons.forEach(button => { button.disabled = false; });
+            setSyncButtonLabel();
         }
     }
 
-    document.querySelectorAll('[data-sync-start]').forEach(button => button.addEventListener('click', function () {
-        const forceFull = this.dataset.forceFull === '1';
+    const syncButton = document.querySelector('[data-sync-start]');
+    const forceFullToggle = document.querySelector('[data-sync-force-full]');
+    if (forceFullToggle) forceFullToggle.addEventListener('change', setSyncButtonLabel);
+    if (syncButton) syncButton.addEventListener('click', function () {
+        const forceFull = forceFullToggle?.checked || false;
         if (forceFull && !window.confirm('Force a full stats refresh for every subscriber? This may take a long time and uses the Kit API rate limit.')) return;
         runSync(forceFull);
-    }));
+    });
     const syncPanel = document.querySelector('[data-sync-panel]');
     if (syncPanel && syncPanel.dataset.status === 'running') runSync(false);
 

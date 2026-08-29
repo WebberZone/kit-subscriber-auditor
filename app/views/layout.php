@@ -6,7 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="<?= e($csrfToken ?? '') ?>">
     <title><?= e($pageTitle ?? 'Kit subscriber audit') ?> · Kit Audit</title>
-    <link rel="stylesheet" href="/assets/app.css">
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="/assets/app.css?v=2">
 </head>
 <body>
 <div class="shell">

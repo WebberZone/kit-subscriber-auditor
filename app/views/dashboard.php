@@ -23,7 +23,7 @@ ob_start();
             <?php if (!$apiConfigured): ?>
                 <a class="button button-warn" href="/settings">Configure Kit API key</a>
             <?php else: ?>
-                <div class="sync-actions"><button class="button button-primary" type="button" data-sync-start data-force-full="0">Sync changes</button><button class="button button-secondary" type="button" data-sync-start data-force-full="1">Force full resync</button></div>
+                <div class="sync-actions"><button class="button button-primary" type="button" data-sync-start>Sync changes</button><label class="sync-option"><input type="checkbox" data-sync-force-full><span>Force full resync<small>Ignore freshness window</small></span></label></div>
             <?php endif; ?>
         </div>
     </section>
