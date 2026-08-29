@@ -14,12 +14,19 @@
         return payload;
     }
 
+    async function getJson(url) {
+        const response = await fetch(url, { headers: { 'Accept': 'application/json' }, credentials: 'same-origin' });
+        const payload = await response.json().catch(() => ({ error: 'The server returned an invalid response.' }));
+        if (!response.ok) throw new Error(payload.error || 'Request failed.');
+        return payload;
+    }
+
     function updateSync(progress) {
         const panel = document.querySelector('[data-sync-panel]');
         if (!panel) return;
         panel.dataset.status = progress.status || 'idle';
         const bar = panel.querySelector('[data-sync-progress]');
-        if (bar) bar.style.width = `${progress.percent || 0}%`;
+        if (bar) bar.value = progress.percent || 0;
         const message = panel.querySelector('[data-sync-message]');
         if (message) message.textContent = progress.message || '';
         const status = panel.querySelector('[data-sync-status]');
@@ -34,12 +41,12 @@
         const button = document.querySelector('[data-sync-start]');
         if (button) { button.disabled = true; button.textContent = 'Syncing…'; }
         try {
-            updateSync(await postJson('/sync/start'));
-            let progress;
+            let progress = await postJson('/sync/start');
+            updateSync(progress);
             do {
-                progress = await postJson('/sync/step');
+                await new Promise(resolve => setTimeout(resolve, 1500));
+                progress = await getJson('/sync/status');
                 updateSync(progress);
-                if (progress.status === 'running') await new Promise(resolve => setTimeout(resolve, 250));
             } while (progress.status === 'running');
             if (progress.status === 'failed') throw new Error(progress.message || 'Sync failed.');
             window.setTimeout(() => window.location.reload(), 500);
@@ -91,7 +98,7 @@
             do {
                 progress = await postJson('/cleanup/step');
                 const bar = cleanupPanel.querySelector('[data-cleanup-progress]');
-                if (bar) bar.style.width = `${progress.percent || 0}%`;
+                if (bar) bar.value = progress.percent || 0;
                 const message = cleanupPanel.querySelector('[data-cleanup-message]');
                 if (message) message.textContent = progress.message || (progress.dry_run ? 'Dry-run complete.' : 'Processing unsubscribe calls.');
                 const status = cleanupPanel.querySelector('[data-cleanup-status]');
@@ -109,4 +116,3 @@
     }
     if (cleanupPanel && ['pending', 'running', 'dry_run_pending'].includes(cleanupPanel.dataset.status)) runCleanup();
 }());
-

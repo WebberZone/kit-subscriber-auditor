@@ -53,7 +53,7 @@ herd link kit-subscriber-auditor
 
 Then open `https://kit-subscriber-auditor.test`. Herd should show SSL enabled for the site; HTTP requests are redirected to HTTPS. If you link the project root instead, the root `.htaccess` forwards requests to `public/index.php` and denies access to application, database, storage, test, and secret files.
 
-Open the resulting `.test` domain and click **Sync Kit now**. The first sync fetches all subscriber states, then fetches stats in batches of 50 by default. You can raise this to 100 in Settings to reduce browser round-trips; Kit’s API-key rate limit still controls the total duration. No cleanup occurs during sync.
+Open the resulting `.test` domain and click **Sync Kit now**. The first sync fetches all subscriber states, then starts a detached local PHP worker that fetches stats in batches of up to 50 by default. You can raise this to 100 in Settings. The browser polls SQLite for progress while the worker runs, so Herd request timeouts do not interrupt long batches. No cleanup occurs during sync.
 
 ## Cleanup safety
 
@@ -89,6 +89,7 @@ app/
   KitApiClient.php       cURL client, API-key auth, throttling, retries, and API errors
   Settings.php           validated local settings
   SyncService.php        paginated subscriber sync and stats queue
+  bin/sync-worker.php     detached local sync worker
   bootstrap.php          application startup and secure response headers
   views/                 server-rendered HTML templates
 database/migrations/     versioned SQLite schema

@@ -123,7 +123,6 @@ final class KitApiClient
             $rawResponse = curl_exec($curl);
             $curlError = curl_error($curl);
             $statusCode = (int) curl_getinfo($curl, CURLINFO_HTTP_CODE);
-            curl_close($curl);
 
             if ($rawResponse === false) {
                 $lastError = 'Network error while contacting Kit: ' . ($curlError ?: 'unknown cURL error');

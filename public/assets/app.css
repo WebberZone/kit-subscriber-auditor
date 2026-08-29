@@ -64,7 +64,10 @@ h2 { font-size: 1.55rem; }
 .status-running, .status-pending, .status-fetching_stats, .status-fetching_subscribers { background: #fff0d8; color: #88531f; }
 .status-failed { background: #ffe5e5; color: #963d3d; }
 .progress-track { height: 7px; margin: 18px 0 9px; border-radius: 20px; background: #edf1ee; overflow: hidden; }
-.progress-track span { display: block; height: 100%; background: linear-gradient(90deg, #78bc8d, #2f7952); border-radius: inherit; transition: width .25s ease; }
+.progress-track progress { display: block; width: 100%; height: 7px; border: 0; border-radius: inherit; background: #edf1ee; }
+.progress-track progress::-webkit-progress-bar { border-radius: inherit; background: #edf1ee; }
+.progress-track progress::-webkit-progress-value { border-radius: inherit; background: linear-gradient(90deg, #78bc8d, #2f7952); transition: width .25s ease; }
+.progress-track progress::-moz-progress-bar { border-radius: inherit; background: linear-gradient(90deg, #78bc8d, #2f7952); }
 .progress-meta { color: var(--muted); font-size: .76rem; }
 .metric-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 24px; }
 .metric-card { display: flex; flex-direction: column; min-height: 126px; gap: 7px; background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 18px; text-decoration: none; transition: transform .15s ease, box-shadow .15s ease; }

@@ -34,7 +34,7 @@ ob_start();
             </div>
             <span class="status-pill status-<?= e($syncProgress['status'] ?? 'idle') ?>" data-sync-status><?= e(str_replace('_', ' ', $syncProgress['status'] ?? 'idle')) ?></span>
         </div>
-        <div class="progress-track" aria-label="Sync progress"><span data-sync-progress style="width: <?= (int) ($syncProgress['percent'] ?? 0) ?>%"></span></div>
+        <div class="progress-track"><progress data-sync-progress max="100" value="<?= (int) ($syncProgress['percent'] ?? 0) ?>" aria-label="Sync progress"></progress></div>
         <div class="progress-meta">
             <span data-sync-count><?= (int) ($syncProgress['processed'] ?? 0) ?> / <?= (int) ($syncProgress['total'] ?? 0) ?> subscribers with stats</span>
             <span data-sync-phase><?= e(str_replace('_', ' ', $syncProgress['phase'] ?? 'idle')) ?></span>

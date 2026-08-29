@@ -117,12 +117,15 @@ try {
         if (!$credentials->hasApiKey()) {
             throw new HttpException('Configure a Kit API key in Settings before starting a sync.', 422);
         }
-        json_response($sync->start((int) $settings['batch_size']));
+        $batchSize = (int) $settings['batch_size'];
+        $progress = $sync->start($batchSize);
+        $sync->launchWorker($batchSize, $projectRoot . '/bin/sync-worker.php', $projectRoot . '/storage/sync-worker.log');
+        json_response($progress);
     }
 
     if ($path === '/sync/step' && $method === 'POST') {
         verify_csrf();
-        json_response($sync->step((int) $settings['batch_size']));
+        json_response($sync->latestProgress());
     }
 
     if ($path === '/sync/status' && $method === 'GET') {

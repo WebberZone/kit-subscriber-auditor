@@ -7,6 +7,7 @@ namespace KitAudit;
 final class SyncService
 {
     private const STATS_REQUEST_INTERVAL_SECONDS = 0.55;
+    private const MAX_STEP_SECONDS = 45.0;
 
     public function __construct(
         private readonly Database $database,
@@ -40,7 +41,7 @@ final class SyncService
         return $this->progress($runId);
     }
 
-    public function step(int $batchSize): array
+    public function step(int $batchSize, ?float $maxSeconds = self::MAX_STEP_SECONDS): array
     {
         $run = $this->database->fetchOne(
             "SELECT * FROM sync_runs WHERE status = 'running' ORDER BY id DESC LIMIT 1"
@@ -55,7 +56,7 @@ final class SyncService
             if ($run['phase'] === 'fetching_subscribers') {
                 $this->fetchSubscriberPage($run, $runId);
             } elseif ($run['phase'] === 'fetching_stats') {
-                $this->fetchStatsBatch($runId, max(1, min(100, $batchSize)));
+                $this->fetchStatsBatch($runId, max(1, min(100, $batchSize)), $maxSeconds);
             } else {
                 $this->fail($runId, 'The sync entered an unknown phase.');
             }
@@ -66,6 +67,39 @@ final class SyncService
         }
 
         return $this->progress($runId);
+    }
+
+    public function launchWorker(int $batchSize, string $workerPath, string $logPath): void
+    {
+        if (!function_exists('proc_open')) {
+            throw new HttpException('The PHP process extension is required to run background syncs.', 500);
+        }
+
+        $phpBinary = PHP_BINDIR . DIRECTORY_SEPARATOR . 'php';
+        if (!is_executable($phpBinary)) {
+            $phpBinary = preg_replace('/-fpm$/', '', PHP_BINARY) ?: PHP_BINARY;
+        }
+        if (!is_executable($phpBinary)) {
+            throw new HttpException('Unable to locate the PHP CLI binary for background sync.', 500);
+        }
+
+        $command = 'nohup ' . escapeshellarg($phpBinary)
+            . ' ' . escapeshellarg($workerPath)
+            . ' --batch-size=' . max(1, min(100, $batchSize))
+            . ' >> ' . escapeshellarg($logPath) . ' 2>&1 < /dev/null &';
+        $process = proc_open(
+            $command,
+            [
+                0 => ['file', '/dev/null', 'r'],
+                1 => ['file', $logPath, 'ab'],
+                2 => ['file', $logPath, 'ab'],
+            ],
+            $pipes
+        );
+        if (!is_resource($process)) {
+            throw new HttpException('Unable to start the local sync worker.', 500);
+        }
+        proc_close($process);
     }
 
     /** @return array<string, mixed> */
@@ -126,7 +160,7 @@ final class SyncService
         );
     }
 
-    private function fetchStatsBatch(int $runId, int $batchSize): void
+    private function fetchStatsBatch(int $runId, int $batchSize, ?float $maxSeconds): void
     {
         $queue = $this->database->fetchAll(
             "SELECT q.id AS queue_id, q.subscriber_id
@@ -151,7 +185,13 @@ final class SyncService
             return;
         }
 
+        $stepStartedAt = microtime(true);
+        $processedThisStep = 0;
         foreach ($queue as $item) {
+            if ($maxSeconds !== null && $processedThisStep > 0 && microtime(true) - $stepStartedAt >= $maxSeconds) {
+                break;
+            }
+
             $queueId = (int) $item['queue_id'];
             $subscriberId = (int) $item['subscriber_id'];
             $this->database->execute(
@@ -170,6 +210,7 @@ final class SyncService
                     "UPDATE sync_queue SET status = 'complete', processed_at = :processed_at, error_message = NULL WHERE id = :id",
                     ['processed_at' => utc_now(), 'id' => $queueId]
                 );
+                $processedThisStep++;
             } catch (KitApiException $exception) {
                 $this->database->execute(
                     "UPDATE sync_queue SET status = 'failed', processed_at = :processed_at, error_message = :error_message WHERE id = :id",
@@ -187,13 +228,14 @@ final class SyncService
                     'UPDATE sync_runs SET failed_subscribers = failed_subscribers + 1 WHERE id = :id',
                     ['id' => $runId]
                 );
+                $processedThisStep++;
             }
         }
 
         $this->database->execute(
             'UPDATE sync_runs SET last_message = :last_message, updated_at = :updated_at WHERE id = :id',
             [
-                'last_message' => 'Fetched the next subscriber stats batch.',
+                'last_message' => sprintf('Fetched %d subscriber stats in this step.', $processedThisStep),
                 'updated_at' => utc_now(),
                 'id' => $runId,
             ]
