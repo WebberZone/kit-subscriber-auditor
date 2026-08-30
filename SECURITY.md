@@ -2,14 +2,17 @@
 
 ## Scope
 
-Kit Subscriber Audit is a local-first application for one operator. It stores
-subscriber personally identifiable information and a Kit API key on the local
-machine. It is not a multi-user application and must not be exposed directly
-to the public internet.
+Kit Subscriber Audit is a self-hosted, local-first application for one trusted
+operator. It stores subscriber personally identifiable information and a Kit
+API key with the deployment you control. It is not a hosted SaaS or multi-user
+application. You can run it locally or on self-managed infrastructure, but an
+internet-facing deployment must use HTTPS, strong authentication, and network
+access controls; never expose an unprotected instance directly to the public
+internet.
 
-The supported deployment model is a local HTTPS site such as Herd. If you put
-it behind a reverse proxy, use a private network, require authentication, and
-configure `TRUST_PROXY=1` only when that proxy is trusted.
+The simplest supported deployment is a local HTTPS site such as Herd. If you
+put it behind a reverse proxy, use a private network where appropriate, require
+authentication, and configure `TRUST_PROXY=1` only when that proxy is trusted.
 
 ## Reporting a vulnerability
 
