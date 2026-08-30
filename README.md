@@ -8,13 +8,13 @@ This project uses the current Kit API v4 contract:
 
 - `GET https://api.kit.com/v4/subscribers` with the server-side `X-Kit-Api-Key` header. It uses cursor pagination: request the next page with `after=<end_cursor>`. Kit documents a default page size of 500 and a maximum of 1000; this app requests 1000 for subscriber pages.
 - `GET https://api.kit.com/v4/subscribers/{subscriber_id}/stats` returns `sent`, `opened`, `clicked`, `bounced`, `open_rate`, `click_rate`, `last_sent`, `last_opened`, `last_clicked`, `sends_since_last_open`, and `sends_since_last_click`.
-- `GET https://api.kit.com/v4/tags` lists tags with cursor pagination. `POST https://api.kit.com/v4/tags/{tag_id}/subscribers/{subscriber_id}` adds one subscriber to a tag. Kit also documents `POST /v4/bulk/tags/subscribers`, but that bulk endpoint requires an OAuth bearer token; this API-key app therefore applies tags one subscriber at a time and records each result.
+- `GET https://api.kit.com/v4/tags` lists tags with cursor pagination. `POST https://api.kit.com/v4/tags/{tag_id}/subscribers/{subscriber_id}` adds one subscriber to a tag. `POST https://api.kit.com/v4/bulk/tags/subscribers` accepts up to 100 taggings synchronously with an OAuth bearer token; the app uses that path when OAuth is connected and falls back to individual API-key calls otherwise.
 - `GET https://api.kit.com/v4/tags/{tag_id}/subscribers` lists the current members of a tag with cursor pagination. The re-engagement resync uses active members so people who have already left the list are not proposed for unsubscribe.
 - `GET https://api.kit.com/v4/broadcasts?status=completed&slim=true` lists completed broadcasts. The resync then calls subscriber stats with `email_sent_after=YYYY-MM-DD` and compares `last_clicked` with the selected broadcast's exact `send_at` timestamp.
 - `POST https://api.kit.com/v4/subscribers/{id}/unsubscribe` returns `204 No Content` and moves the subscriber to `cancelled`. Kit retains the subscriber record, history, and tags. Kit does not document a bulk unsubscribe endpoint for API-key authentication, so this app uses individually rate-limited calls.
-- Kit documents a limit of 120 requests per rolling 60 seconds for an API key. The client spaces requests by 550ms and retries safe `GET` failures plus `429` responses with exponential backoff. It does not automatically repeat an unsubscribe after an ambiguous network or `5xx` response; that item is recorded as failed for review. This app requests all subscriber states, so a first sync of 4,702 subscribers requires a theoretical minimum of about 39 minutes and a practical baseline of about 43 minutes before response latency and retries.
+- Kit documents a limit of 120 requests per rolling 60 seconds for an API key and 600 requests per rolling 60 seconds for OAuth. The client spaces API-key requests by 550ms and OAuth requests by 110ms, and retries safe `GET` failures plus `429` responses with exponential backoff. It does not automatically repeat an unsubscribe after an ambiguous network or `5xx` response; that item is recorded as failed for review.
 
-The official documentation pages are [List subscribers](https://developers.kit.com/api-reference/subscribers/list-subscribers), [List stats for a subscriber](https://developers.kit.com/api-reference/subscribers/list-stats-for-a-subscriber), [Unsubscribe subscriber](https://developers.kit.com/api-reference/subscribers/unsubscribe-subscriber), [Pagination](https://developers.kit.com/api-reference/pagination), [Response codes](https://developers.kit.com/api-reference/response-codes), and [Authentication](https://developers.kit.com/api-reference/authentication).
+The official documentation pages are [List subscribers](https://developers.kit.com/api-reference/subscribers/list-subscribers), [List stats for a subscriber](https://developers.kit.com/api-reference/subscribers/list-stats-for-a-subscriber), [Bulk tag subscribers](https://developers.kit.com/api-reference/tags/bulk-tag-subscribers), [Unsubscribe subscriber](https://developers.kit.com/api-reference/subscribers/unsubscribe-subscriber), [Pagination](https://developers.kit.com/api-reference/pagination), [Response codes](https://developers.kit.com/api-reference/response-codes), and [Authentication](https://developers.kit.com/api-reference/authentication).
 
 Stats freshness is configurable in Settings and defaults to 24 hours. A normal sync always refreshes the subscriber list but queues only subscribers without stats or with stats older than that window. **Force full resync** deliberately bypasses the freshness check and requires confirmation.
 
@@ -43,7 +43,9 @@ TRUST_PROXY=0
 Set `APP_PASSWORD` to protect the dashboard with a local session login. If you leave it empty, the app has no login layer and should only be reachable from your local machine.
 Leave `TRUST_PROXY=0` for Herd. Set it to `1` only when a trusted reverse proxy terminates HTTPS and passes `X-Forwarded-Proto` to PHP.
 
-Paste a Kit v4 API key into Settings. It is authenticated-encrypted in SQLite using the local key at `storage/.credentials.key`. The key file, database, WAL files, and logs are all ignored by Git. A `KIT_API_KEY` in `.env` is also supported and is never rendered to the client.
+Paste a Kit v4 API key into Settings, or connect Kit through OAuth. API keys and OAuth access/refresh tokens are authenticated-encrypted in SQLite using the local key at `storage/.credentials.key`. The key file, database, WAL files, refresh lock, and logs are all ignored by Git. A `KIT_API_KEY` in `.env` is also supported and is never rendered to the client. The OAuth flow uses PKCE and the same official shared Kit/WordPress OAuth client pattern used by Freemkit; no OAuth client secret is stored.
+
+OAuth is started from **Settings → Connect Kit via OAuth**. Kit returns through the official shared redirect at `https://app.kit.com/wordpress/redirect`, which forwards the short-lived authorization result to this local HTTPS callback. The app validates the browser session, PKCE verifier, state, client ID, and callback nonce before exchanging the code. The browser never receives the resulting tokens.
 
 The SQLite database is created and migrated automatically on the first request. To run the migration explicitly:
 
@@ -60,16 +62,16 @@ herd link kit-subscriber-auditor
 
 Then open `https://kit-subscriber-auditor.test`. Herd should show SSL enabled for the site; HTTP requests are redirected to HTTPS. If you link the project root instead, the root `.htaccess` forwards requests to `public/index.php` and denies access to application, database, storage, test, and secret files.
 
-Open the resulting `.test` domain and click **Sync changes**. The first sync fetches all subscriber states, then starts a detached local PHP worker that fetches missing stats. Later normal syncs still refresh the subscriber list, but skip stats refreshed within the configured refresh window. Use **Force full resync** only when every subscriber's stats need to be fetched again; it requires a browser confirmation.
+Open the resulting `.test` domain and click **Sync changes**. The first sync fetches all subscriber states, then starts a detached local PHP worker that fetches missing stats. Later normal syncs still refresh the subscriber list, but skip stats refreshed within the configured refresh window. Use **Force full resync** only when every subscriber's stats need to be fetched again; it requires a browser confirmation. With OAuth connected, the higher request limit reduces wait time for read-heavy syncs, while stats remain one subscriber-stats request per subscriber because that is the Kit API contract.
 
-The worker processes stats sequentially in batches of up to 50 by default. You can raise this to 100 in Settings, which changes local queue/progress grouping but does not bypass Kit's API-key rate limit. The browser polls SQLite for progress while the worker runs, so Herd request timeouts do not interrupt long batches. The run stores a worker PID and heartbeat; a stale heartbeat is shown in the dashboard and starting sync again safely resumes pending queue items. No cleanup occurs during sync.
+The worker processes stats sequentially in batches of up to 50 by default. You can raise this to 100 in Settings, which changes local queue/progress grouping but does not combine the individual stats endpoints. The browser polls SQLite for progress while the worker runs, so Herd request timeouts do not interrupt long batches. The run stores a worker PID and heartbeat; a stale heartbeat is shown in the dashboard and starting sync again safely resumes pending queue items. No cleanup occurs during sync.
 
 ## Re-engagement workflow
 
 The re-engagement workflow is intentionally user-timed; it does not assume that a broadcast needs exactly seven days.
 
 1. Create or choose a Kit tag in Settings.
-2. From the Removal candidates view, select the subscribers you want to give one more chance and confirm **Tag for re-engagement**. The worker applies the tag and stores the cohort locally. It does not send anything.
+2. From the Removal candidates view, select the subscribers you want to give one more chance and confirm **Tag for re-engagement**. With OAuth connected, the worker applies the tag in batches of up to 100; with only an API key it applies one subscriber at a time. It stores the cohort locally and does not send anything.
 3. Draft and send the re-engagement broadcast from Kit, targeting that tag.
 4. When you decide the broadcast has had enough time, choose the actual completed broadcast in Re-engagement and click **Resync tagged subscribers**. The app fetches the tag's current active members and checks their click activity since that broadcast's send time.
 5. Review the resulting stale list. Subscribers who clicked after the selected broadcast are excluded. The stale list hands off to the existing unsubscribe review, CSV export, dry-run, and explicit `UNSUBSCRIBE` confirmation flow.
@@ -106,9 +108,10 @@ app/
   AuditService.php       SQLite metrics, filtering, sorting, and rule revalidation
   CleanupService.php     explicit cleanup jobs and per-subscriber results
   Config.php             environment-backed configuration
-  CredentialStore.php    encrypted local API-key storage
+  CredentialStore.php    encrypted local API-key and OAuth-token storage
   Database.php           SQLite connection and migrations
-  KitApiClient.php       cURL client, API-key auth, throttling, retries, and API errors
+  KitApiClient.php       cURL client, OAuth/API-key auth, bulk tagging, throttling, retries, and API errors
+  OAuthService.php       PKCE authorization, token exchange, refresh locking, and disconnect
   ReengagementService.php tag cohort, broadcast resync, click comparison, and stale handoff
   Settings.php           validated local settings
   SyncService.php        paginated subscriber sync, freshness policy, and stats queue
@@ -132,4 +135,4 @@ composer test
 composer lint
 ```
 
-The test script uses a temporary SQLite database and verifies metric calculation, candidate filtering, and server-side candidate revalidation. No live Kit request is made by the test suite.
+The test script uses a temporary SQLite database and verifies metric calculation, candidate filtering, server-side candidate revalidation, and encrypted credential lifecycle. No live Kit request is made by the test suite.

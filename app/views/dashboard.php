@@ -21,7 +21,7 @@ ob_start();
         </div>
         <div class="hero-actions">
             <?php if (!$apiConfigured): ?>
-                <a class="button button-warn" href="/settings">Configure Kit API key</a>
+                <a class="button button-warn" href="/settings">Connect Kit</a>
             <?php else: ?>
                 <div class="sync-actions"><button class="button button-primary" type="button" data-sync-start>Sync changes</button><label class="sync-option"><input type="checkbox" data-sync-force-full><span>Force full resync<small>Ignore freshness window</small></span></label></div>
             <?php endif; ?>
@@ -29,7 +29,7 @@ ob_start();
     </section>
 
     <?php if (!$apiConfigured): ?>
-        <div class="notice notice-warn"><strong>Kit API key not configured.</strong> Add one from Settings before syncing.</div>
+        <div class="notice notice-warn"><strong>Kit connection not configured.</strong> Connect Kit via OAuth or add an API key from Settings before syncing.</div>
     <?php endif; ?>
 
     <section class="progress-card" data-sync-panel data-status="<?= e($syncProgress['status'] ?? 'idle') ?>">

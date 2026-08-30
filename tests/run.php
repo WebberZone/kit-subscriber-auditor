@@ -16,6 +16,7 @@ copy($root . '/database/migrations/006_reengagement.sql', $temporary . '/migrati
 require_once $root . '/app/Config.php';
 require_once $root . '/app/Database.php';
 require_once $root . '/app/CredentialStore.php';
+require_once $root . '/app/OAuthService.php';
 require_once $root . '/app/KitApiClient.php';
 require_once $root . '/app/helpers.php';
 require_once $root . '/app/Settings.php';
@@ -28,6 +29,7 @@ use KitAudit\Config;
 use KitAudit\CredentialStore;
 use KitAudit\Database;
 use KitAudit\KitApiClient;
+use KitAudit\OAuthService;
 use KitAudit\Settings;
 use KitAudit\SyncService;
 use function KitAudit\csv_safe;
@@ -42,6 +44,18 @@ $credentials = new CredentialStore($database, new Config([]), $temporary . '/cre
 $credentials->saveApiKey('test-kit-key-123');
 if (!$credentials->hasStoredApiKey() || $credentials->apiKey() !== 'test-kit-key-123' || $credentials->apiKeySource() !== 'encrypted SQLite') {
     throw new RuntimeException('Credential encryption test failed.');
+}
+$credentials->saveOAuthTokens('test-access-token', 'test-refresh-token', 3600, 'subscribers:read tags:write');
+if (!$credentials->hasOAuthCredentials() || $credentials->oauthAccessToken() !== 'test-access-token' || $credentials->oauthRefreshToken() !== 'test-refresh-token') {
+    throw new RuntimeException('OAuth credential encryption test failed.');
+}
+$encryptedOAuth = (string) ($database->fetchOne('SELECT encrypted_access_token, encrypted_refresh_token FROM credentials WHERE id = 1')['encrypted_access_token'] ?? '');
+if ($encryptedOAuth === '' || str_contains($encryptedOAuth, 'test-access-token')) {
+    throw new RuntimeException('OAuth credential storage test failed.');
+}
+$credentials->clearOAuthCredentials();
+if ($credentials->hasOAuthCredentials()) {
+    throw new RuntimeException('OAuth credential removal test failed.');
 }
 $encrypted = (string) ($database->fetchOne('SELECT encrypted_api_key FROM credentials WHERE id = 1')['encrypted_api_key'] ?? '');
 if ($encrypted === '' || str_contains($encrypted, 'test-kit-key-123')) {

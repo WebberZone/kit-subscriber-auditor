@@ -4,7 +4,7 @@
 
     <section class="settings-card">
         <div class="settings-row">
-            <div><span class="section-kicker">Kit connection</span><strong><?= $apiConfigured ? 'Ready to sync' : 'Connection needed' ?></strong><small>Use a Kit v4 API key for this local-only app.</small></div>
+            <div><span class="section-kicker">Kit connection</span><strong><?= $apiConfigured ? 'Ready to sync' : 'Connection needed' ?></strong><small>Use the encrypted API key fallback or connect this local app through Kit OAuth. OAuth is preferred when available.</small></div>
             <span class="status-pill status-<?= $apiConfigured ? 'complete' : 'failed' ?>"><?= $apiConfigured ? 'Configured' : 'Missing' ?></span>
         </div>
 
@@ -24,6 +24,24 @@
                 <input type="hidden" name="credential_action" value="clear_api_key">
                 <button class="button button-danger" type="submit">Remove stored API key</button>
             </form>
+        <?php endif; ?>
+    </section>
+
+    <section class="settings-card">
+        <div class="settings-row">
+            <div><span class="section-kicker">Kit OAuth</span><strong><?= $oauthConnected ? 'Connected' : 'Not connected' ?></strong><small><?= $oauthConnected ? e('Status: ' . $oauthStatus . '. OAuth requests are faster and enable Kit bulk tagging.') : 'Uses a PKCE authorization flow compatible with the official Freemkit Kit connection. No client secret or token is sent to the browser.' ?></small></div>
+            <span class="status-pill status-<?= $oauthConnected ? 'complete' : 'idle' ?>"><?= $oauthConnected ? 'Available' : 'Optional' ?></span>
+        </div>
+        <?php if ($oauthConnected): ?>
+            <div class="notice notice-good"><strong>OAuth is active.</strong> The app will use the OAuth connection for Kit API calls. Your API key remains available as a separate local fallback.</div>
+            <form method="post" action="/oauth/disconnect" class="form-actions">
+                <input type="hidden" name="csrf_token" value="<?= e($csrfToken) ?>">
+                <button class="button button-danger" type="submit">Disconnect local OAuth tokens</button>
+            </form>
+        <?php elseif ($oauthConfigured): ?>
+            <div class="form-actions"><a class="button button-secondary" href="/oauth/start">Connect Kit via OAuth</a></div>
+        <?php else: ?>
+            <div class="notice notice-warn">OAuth configuration is incomplete. Set the optional <code>KIT_OAUTH_*</code> values in <code>.env</code> or use the API key.</div>
         <?php endif; ?>
     </section>
 

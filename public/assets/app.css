@@ -57,6 +57,7 @@ h2 { font-size: 1.55rem; }
 .notice, .flash { border: 1px solid var(--line); border-radius: 10px; padding: 13px 16px; margin-bottom: 18px; font-size: .9rem; line-height: 1.45; }
 .notice-warn, .flash-error { color: #63351f; background: #fff2e7; border-color: #f2cdb6; }
 .notice-danger { color: #702c2c; background: #ffeded; border-color: #ecc4c4; }
+.notice-good, .flash-success { color: #24563a; background: #e9f7ef; border-color: #b9dfc6; }
 .notice-info { color: #24536a; background: #e9f5fb; border-color: #c7e0ed; margin: 0; }
 .flash-success { color: #1f603f; background: #eaf7ed; border-color: #bedfc7; }
 .progress-card, .settings-card, .review-card, .info-card, .empty-card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow); }

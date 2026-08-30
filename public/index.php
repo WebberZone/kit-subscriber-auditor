@@ -57,6 +57,33 @@ try {
         redirect('/login');
     }
 
+    if ($path === '/oauth/start' && $method === 'GET') {
+        $auth->requireLogin();
+        redirect($oauth->authorizationUrl());
+    }
+
+    if ($path === '/oauth/callback' && $method === 'GET') {
+        $auth->requireLogin();
+        try {
+            $oauth->handleCallback($_GET);
+            flash('success', 'Kit OAuth connected. Kit API requests will now use the OAuth connection.');
+        } catch (HttpException|KitApiException $exception) {
+            flash('error', $exception->getMessage());
+        } catch (Throwable $exception) {
+            error_log('Kit OAuth callback failed: ' . $exception->getMessage());
+            flash('error', 'Kit OAuth could not be completed. Check the PHP error log and try again.');
+        }
+        redirect('/settings');
+    }
+
+    if ($path === '/oauth/disconnect' && $method === 'POST') {
+        $auth->requireLogin();
+        verify_csrf();
+        $oauth->disconnect();
+        flash('success', 'The local Kit OAuth tokens were removed.');
+        redirect('/settings');
+    }
+
     $auth->requireLogin();
 
     if ($path === '/' && $method === 'GET') {
@@ -82,7 +109,7 @@ try {
             'reengagementProgress' => $reengagement->latestProgress(),
             'csrfToken' => csrf_token(),
             'flashMessages' => consume_flash(),
-            'apiConfigured' => $credentials->hasApiKey(),
+            'apiConfigured' => $kit->hasCredentials(),
             'authEnabled' => $auth->enabled(),
         ]);
         exit;
@@ -90,7 +117,7 @@ try {
 
     if ($path === '/settings' && $method === 'GET') {
         $availableTags = [];
-        if ($credentials->hasApiKey()) {
+        if ($kit->hasCredentials()) {
             try {
                 $availableTags = $reengagement->availableTags();
             } catch (KitApiException $exception) {
@@ -100,8 +127,11 @@ try {
         $template->render('settings', [
             'pageTitle' => 'Settings',
             'settings' => $settings,
-            'apiConfigured' => $credentials->hasApiKey(),
+            'apiConfigured' => $kit->hasCredentials(),
             'apiKeySource' => $credentials->apiKeySource(),
+            'oauthStatus' => $oauth->status(),
+            'oauthConnected' => $oauth->isConnected(),
+            'oauthConfigured' => $oauth->isConfigured(),
             'availableTags' => $availableTags,
             'csrfToken' => csrf_token(),
             'flashMessages' => consume_flash(),
@@ -128,8 +158,8 @@ try {
 
     if ($path === '/sync/start' && $method === 'POST') {
         verify_csrf();
-        if (!$credentials->hasApiKey()) {
-            throw new HttpException('Configure a Kit API key in Settings before starting a sync.', 422);
+        if (!$kit->hasCredentials()) {
+            throw new HttpException('Connect Kit via OAuth or configure an API key in Settings before starting a sync.', 422);
         }
         $batchSize = (int) $settings['batch_size'];
         $forceFull = (string) ($_POST['force_full'] ?? '') === '1';
@@ -150,7 +180,7 @@ try {
     if ($path === '/reengagement' && $method === 'GET') {
         $availableBroadcasts = [];
         $broadcastError = null;
-        if ($credentials->hasApiKey()) {
+        if ($kit->hasCredentials()) {
             try {
                 $availableBroadcasts = $reengagement->availableBroadcasts();
             } catch (KitApiException $exception) {
@@ -166,7 +196,7 @@ try {
             'staleRows' => $reengagement->staleRows(),
             'csrfToken' => csrf_token(),
             'flashMessages' => consume_flash(),
-            'apiConfigured' => $credentials->hasApiKey(),
+            'apiConfigured' => $kit->hasCredentials(),
             'authEnabled' => $auth->enabled(),
         ]);
         exit;
@@ -183,7 +213,7 @@ try {
             'settings' => $settings,
             'csrfToken' => csrf_token(),
             'flashMessages' => consume_flash(),
-            'apiConfigured' => $credentials->hasApiKey(),
+            'apiConfigured' => $kit->hasCredentials(),
             'authEnabled' => $auth->enabled(),
         ]);
         exit;
@@ -191,8 +221,8 @@ try {
 
     if ($path === '/reengagement/start' && $method === 'POST') {
         verify_csrf();
-        if (!$credentials->hasApiKey()) {
-            throw new HttpException('Configure a Kit API key in Settings before tagging subscribers.', 422);
+        if (!$kit->hasCredentials()) {
+            throw new HttpException('Connect Kit via OAuth or configure an API key in Settings before tagging subscribers.', 422);
         }
         if (trim((string) ($_POST['confirm_phrase'] ?? '')) !== 'TAG') {
             throw new HttpException('Type TAG to confirm applying the Kit tag.', 422);
@@ -209,8 +239,8 @@ try {
 
     if ($path === '/reengagement/resync' && $method === 'POST') {
         verify_csrf();
-        if (!$credentials->hasApiKey()) {
-            throw new HttpException('Configure a Kit API key in Settings before resyncing the tag.', 422);
+        if (!$kit->hasCredentials()) {
+            throw new HttpException('Connect Kit via OAuth or configure an API key in Settings before resyncing the tag.', 422);
         }
         if (empty($_POST['confirm_resync'])) {
             throw new HttpException('Confirm that you sent the selected Kit broadcast and want to resync the tag.', 422);
@@ -275,7 +305,7 @@ try {
             'settings' => $settings,
             'csrfToken' => csrf_token(),
             'flashMessages' => consume_flash(),
-            'apiConfigured' => $credentials->hasApiKey(),
+            'apiConfigured' => $kit->hasCredentials(),
             'authEnabled' => $auth->enabled(),
         ]);
         exit;
@@ -290,8 +320,8 @@ try {
         if (empty($_POST['confirm_export'])) {
             throw new HttpException('Confirm that you reviewed or exported the proposed list.', 422);
         }
-        if (!$credentials->hasApiKey()) {
-            throw new HttpException('Configure a Kit API key in Settings before starting cleanup.', 422);
+        if (!$kit->hasCredentials()) {
+            throw new HttpException('Connect Kit via OAuth or configure an API key in Settings before starting cleanup.', 422);
         }
         $ids = is_array($_SESSION['cleanup_selection'] ?? null) ? $_SESSION['cleanup_selection'] : [];
         $progress = $cleanup->start($ids, $settings);
@@ -344,13 +374,13 @@ try {
         json_response(['error' => $exception->getMessage()], $exception->status);
     }
     flash('error', $exception->getMessage());
-    redirect($path === '/settings' ? '/settings' : ($path === '/login' ? '/login' : '/'));
+    redirect($path === '/settings' || str_starts_with($path, '/oauth/') ? '/settings' : ($path === '/login' ? '/login' : '/'));
 } catch (KitApiException $exception) {
     if (str_starts_with($path, '/sync/') || str_starts_with($path, '/cleanup/') || str_starts_with($path, '/reengagement/')) {
         json_response(['error' => $exception->getMessage()], 502);
     }
     flash('error', $exception->getMessage());
-    redirect('/');
+    redirect(str_starts_with($path, '/oauth/') ? '/settings' : '/');
 } catch (Throwable $exception) {
     error_log($exception->getMessage());
     if (str_starts_with($path, '/sync/') || str_starts_with($path, '/cleanup/') || str_starts_with($path, '/reengagement/')) {

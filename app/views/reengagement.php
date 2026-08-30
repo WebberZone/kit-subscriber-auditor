@@ -13,7 +13,7 @@ ob_start();
     </section>
 
     <?php if (!$apiConfigured): ?>
-        <div class="notice notice-warn"><strong>Kit API key not configured.</strong> Add one from Settings before using this workflow.</div>
+        <div class="notice notice-warn"><strong>Kit connection not configured.</strong> Connect Kit via OAuth or add an API key from Settings before using this workflow.</div>
     <?php elseif ((int) ($settings['reengagement_tag_id'] ?? 0) < 1): ?>
         <div class="notice notice-warn"><strong>No re-engagement tag selected.</strong> Choose an existing Kit tag in Settings first.</div>
     <?php endif; ?>
