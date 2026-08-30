@@ -2,7 +2,7 @@
 
 Kit Subscriber Audit is a local-first PHP 8.3+ dashboard for auditing and deliberately cleaning a Kit.com subscriber list. Subscriber data and job history are cached in SQLite, while the Kit API key stays server-side.
 
-This is intentionally designed for one trusted operator on a local HTTPS site. It is not a hosted multi-user application.
+This is intentionally designed for one trusted operator in a deployment you control. It can run locally or on self-managed infrastructure, but it is not a hosted multi-user application.
 
 ## Features
 

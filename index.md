@@ -8,7 +8,7 @@ permalink: /
   <div class="hero-inner">
     <p class="eyebrow"><span aria-hidden="true"></span>WebberZone · Open source</p>
     <h1>Clean your Kit list <em>with confidence.</em></h1>
-    <p class="hero-sub">A local, review-first dashboard for auditing subscriber engagement, planning re-engagement, and cleaning a Kit.com list deliberately.</p>
+    <p class="hero-sub">A self-hosted, review-first dashboard for auditing subscriber engagement, planning re-engagement, and cleaning a Kit.com list deliberately.</p>
     <div class="hero-ctas">
       <a class="button" href="{{ '/docs/getting-started/' | relative_url }}">Get started <span aria-hidden="true">›</span></a>
       <a class="button outline" href="https://github.com/WebberZone/kit-subscriber-auditor/releases/latest" target="_blank" rel="noreferrer">Latest release ↗</a>
@@ -43,9 +43,9 @@ permalink: /
 
 <section class="section-band section-band-light" id="start-here">
   <div class="container split">
-    <div><p class="eyebrow"><span aria-hidden="true"></span>Start here</p><h2 class="section-title">A private dashboard on your machine.</h2><p class="section-desc">It runs as a small PHP application with no framework and no frontend build step. Herd users can link the <code>public/</code> directory directly.</p></div>
+    <div><p class="eyebrow"><span aria-hidden="true"></span>Start here</p><h2 class="section-title">A private dashboard you control.</h2><p class="section-desc">It runs as a small PHP application with no framework and no frontend build step. Run it locally, on a private server, or anywhere else you control. Herd users can link the <code>public/</code> directory directly.</p></div>
     <div class="quick-links"><a href="{{ '/docs/getting-started/' | relative_url }}"><strong>Installation <span aria-hidden="true">→</span></strong><span>Requirements, Herd, API key, and first sync</span></a><a href="{{ '/docs/security/' | relative_url }}"><strong>Security model <span aria-hidden="true">→</span></strong><span>What is protected and what remains your responsibility</span></a><a href="{{ '/docs/releasing/' | relative_url }}"><strong>Releasing <span aria-hidden="true">→</span></strong><span>Build a clean versioned ZIP and publish it on GitHub</span></a></div>
   </div>
 </section>
 
-<section class="notice-wrap"><div class="container"><div class="callout"><strong>Important: run it locally.</strong><span>This is a local operator tool, not a hosted multi-user service. Do not expose it directly to the public internet.</span></div></div></section>
+<section class="notice-wrap"><div class="container"><div class="callout"><strong>Important: you control the deployment.</strong><span>This is a self-hosted operator tool, not a shared multi-user service. If you host it beyond a trusted local environment, protect it with HTTPS, strong authentication, and network access controls.</span></div></div></section>

@@ -38,4 +38,4 @@ The database contains the subscriber snapshot, raw API responses, settings, sync
 
 ## Future adapters
 
-Cloud hosting would require a separate authentication model, encrypted secret storage, a durable queue, and a storage adapter such as a managed database. The current local worker and SQLite implementation should not be copied directly into a public multi-user deployment.
+A multi-user hosted deployment would require a separate authentication model, encrypted secret storage, a durable queue, and a storage adapter such as a managed database. The current one-operator worker and SQLite implementation can be self-hosted by an operator who controls the environment, but should not be copied directly into a public multi-user service.
