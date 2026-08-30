@@ -23,14 +23,12 @@ final class KitApiClient
 {
     private const BASE_URL = 'https://api.kit.com/v4';
     private const API_KEY_REQUEST_INTERVAL_SECONDS = 0.55;
-    private const OAUTH_REQUEST_INTERVAL_SECONDS = 0.11;
     private const MAX_ATTEMPTS = 4;
 
     private float $lastRequestAt = 0.0;
 
     public function __construct(
         private readonly CredentialStore $credentials,
-        private readonly ?OAuthService $oauth = null,
     )
     {
         if (!function_exists('curl_init')) {
@@ -40,12 +38,7 @@ final class KitApiClient
 
     public function hasCredentials(): bool
     {
-        return $this->credentials->hasApiKey() || $this->hasOAuthCredentials();
-    }
-
-    public function hasOAuthCredentials(): bool
-    {
-        return $this->oauth?->isConnected() ?? $this->credentials->hasOAuthCredentials();
+        return $this->credentials->hasApiKey();
     }
 
     /**
@@ -181,41 +174,6 @@ final class KitApiClient
     }
 
     /**
-     * Kit processes up to 100 taggings synchronously. Larger bulk requests are asynchronous.
-     * Keeping this method capped at 100 makes the local worker's result deterministic.
-     *
-     * @param list<array{tag_id: int, subscriber_id: int}> $taggings
-     * @return array<string, mixed>
-     */
-    public function bulkTagSubscribers(array $taggings): array
-    {
-        if ($taggings === [] || count($taggings) > 100) {
-            throw new KitApiException('Bulk Kit tagging accepts between 1 and 100 subscribers per request.', 422);
-        }
-        if (!$this->hasOAuthCredentials() || $this->oauth === null) {
-            throw new KitApiException('Connect Kit via OAuth before using bulk tagging.', 422);
-        }
-
-        $normalised = [];
-        foreach ($taggings as $tagging) {
-            $tagId = (int) ($tagging['tag_id'] ?? 0);
-            $subscriberId = (int) ($tagging['subscriber_id'] ?? 0);
-            if ($tagId < 1 || $subscriberId < 1) {
-                throw new KitApiException('Invalid Kit tag or subscriber ID.', 422);
-            }
-            $normalised[] = ['tag_id' => $tagId, 'subscriber_id' => $subscriberId];
-        }
-
-        return $this->request(
-            'POST',
-            '/bulk/tags/subscribers',
-            [],
-            ['taggings' => $normalised],
-            $this->oauth->accessToken()
-        );
-    }
-
-    /**
      * @param array<string, string> $query
      * @param array<string, string>|object|null $body
      * @return array<string, mixed>
@@ -225,23 +183,12 @@ final class KitApiClient
         string $path,
         array $query = [],
         array|object|null $body = null,
-        ?string $bearerToken = null,
     ): array
     {
-        if ($bearerToken === null && $this->oauth?->isConnected()) {
-            $bearerToken = $this->oauth->accessToken();
+        $apiKey = $this->credentials->apiKey();
+        if ($apiKey === '') {
+            throw new KitApiException('Configure a Kit API key in Settings or .env.', 0);
         }
-        $apiKey = '';
-        if ($bearerToken === null || $bearerToken === '') {
-            $apiKey = $this->credentials->apiKey();
-        }
-        if ($bearerToken === '' && $apiKey === '') {
-            throw new KitApiException('Connect Kit via OAuth or configure an API key in Settings.', 0);
-        }
-        if ($bearerToken === null && $apiKey === '') {
-            throw new KitApiException('Connect Kit via OAuth or configure an API key in Settings.', 0);
-        }
-        $usingOAuth = $bearerToken !== null && $bearerToken !== '';
 
         $url = self::BASE_URL . $path;
         if ($query !== []) {
@@ -250,7 +197,7 @@ final class KitApiClient
 
         $lastError = 'Kit API request failed.';
         for ($attempt = 0; $attempt < self::MAX_ATTEMPTS; $attempt++) {
-            $this->throttle($usingOAuth);
+            $this->throttle();
             $responseHeaders = [];
             $curl = curl_init($url);
             if ($curl === false) {
@@ -279,11 +226,7 @@ final class KitApiClient
                     return strlen($headerLine);
                 },
             ];
-            if ($usingOAuth) {
-                $options[CURLOPT_HTTPHEADER][] = 'Authorization: Bearer ' . $bearerToken;
-            } else {
-                $options[CURLOPT_HTTPHEADER][] = 'X-Kit-Api-Key: ' . $apiKey;
-            }
+            $options[CURLOPT_HTTPHEADER][] = 'X-Kit-Api-Key: ' . $apiKey;
             if ($body !== null) {
                 $options[CURLOPT_POSTFIELDS] = json_encode($body, JSON_THROW_ON_ERROR);
                 $options[CURLOPT_HTTPHEADER][] = 'Content-Type: application/json';
@@ -336,10 +279,10 @@ final class KitApiClient
         throw new KitApiException($lastError);
     }
 
-    private function throttle(bool $usingOAuth): void
+    private function throttle(): void
     {
         $elapsed = microtime(true) - $this->lastRequestAt;
-        $interval = $usingOAuth ? self::OAUTH_REQUEST_INTERVAL_SECONDS : self::API_KEY_REQUEST_INTERVAL_SECONDS;
+        $interval = self::API_KEY_REQUEST_INTERVAL_SECONDS;
         $remaining = $interval - $elapsed;
         if ($remaining > 0) {
             usleep((int) round($remaining * 1_000_000));

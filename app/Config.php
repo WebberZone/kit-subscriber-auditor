@@ -37,43 +37,14 @@ final class Config
         return $this->get('APP_PASSWORD');
     }
 
+    public function allowsUnauthenticatedAccess(): bool
+    {
+        return $this->get('APP_ALLOW_NO_AUTH', '0') === '1';
+    }
+
     public function isProduction(): bool
     {
         return $this->get('APP_ENV', 'local') === 'production';
     }
 
-    public function trustsProxy(): bool
-    {
-        return $this->get('TRUST_PROXY', '0') === '1';
-    }
-
-    public function kitOAuthClientId(): string
-    {
-        return trim($this->get('KIT_OAUTH_CLIENT_ID', 'HXZlOCj-K5r0ufuWCtyoyo3f688VmMAYSsKg1eGvw0Y'));
-    }
-
-    public function kitOAuthRedirectUri(): string
-    {
-        return trim($this->get('KIT_OAUTH_REDIRECT_URI', 'https://app.kit.com/wordpress/redirect'));
-    }
-
-    public function kitOAuthAuthorizeUrl(): string
-    {
-        return trim($this->get('KIT_OAUTH_AUTHORIZE_URL', 'https://app.kit.com/oauth/authorize'));
-    }
-
-    public function kitOAuthTokenUrl(): string
-    {
-        return trim($this->get('KIT_OAUTH_TOKEN_URL', 'https://api.kit.com/oauth/token'));
-    }
-
-    public function kitOAuthReturnUri(): string
-    {
-        return trim($this->get('KIT_OAUTH_RETURN_URI', 'https://kit-subscriber-auditor.test/oauth/callback'));
-    }
-
-    public function kitOAuthTenantName(): string
-    {
-        return trim($this->get('KIT_OAUTH_TENANT_NAME', 'kit-subscriber-auditor.test'));
-    }
 }

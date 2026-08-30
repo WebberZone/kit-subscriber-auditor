@@ -1,0 +1,36 @@
+name: Attach distribution ZIP
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the release tag
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.release.tag_name }}
+          fetch-depth: 0
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: curl, openssl, pdo_sqlite, sodium
+          coverage: none
+
+      - name: Verify the release
+        run: composer test
+
+      - name: Build distribution ZIP
+        run: ./build-zip.sh "${{ github.event.release.tag_name }}"
+
+      - name: Attach distribution ZIP to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "${{ github.event.release.tag_name }}" "build/kit-subscriber-auditor-${{ github.event.release.tag_name }}.zip" --clobber

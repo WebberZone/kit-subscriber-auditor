@@ -13,7 +13,7 @@ ob_start();
     </section>
 
     <?php if (!$apiConfigured): ?>
-        <div class="notice notice-warn"><strong>Kit connection not configured.</strong> Connect Kit via OAuth or add an API key from Settings before using this workflow.</div>
+        <div class="notice notice-warn"><strong>Kit connection not configured.</strong> Add an API key from Settings before using this workflow.</div>
     <?php elseif ((int) ($settings['reengagement_tag_id'] ?? 0) < 1): ?>
         <div class="notice notice-warn"><strong>No default re-engagement tag selected.</strong> You can choose or create the tag on the cohort review screen; Settings is only needed when choosing a default for resync.</div>
     <?php endif; ?>

@@ -1,0 +1,45 @@
+title: Kit Subscriber Audit
+description: A local-first PHP dashboard for auditing and deliberately cleaning Kit subscribers.
+url: https://ajaydsouza.github.io
+baseurl: /kit-subscriber-auditor
+
+permalink: pretty
+markdown: kramdown
+kramdown:
+  input: GFM
+  syntax_highlighter: rouge
+
+defaults:
+  - scope:
+      path: "docs"
+    values:
+      layout: doc
+  - scope:
+      path: ""
+      type: pages
+    values:
+      layout: default
+
+exclude:
+  - Gemfile
+  - Gemfile.lock
+  - vendor
+  - node_modules
+  - build
+  - storage
+  - app
+  - bin
+  - database
+  - public
+  - tests
+  - "*.php"
+  - "*.dist"
+  - README.md
+  - LICENSE
+  - SECURITY.md
+  - CONTRIBUTING.md
+  - CHANGELOG.md
+  - build-zip.sh
+  - composer.json
+  - composer.lock
+  - ".env*"

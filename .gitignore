@@ -6,4 +6,9 @@ storage/*.sqlite-*
 storage/*.log
 storage/*.lock
 storage/.credentials.key
+build/
+_site/
+.jekyll-cache/
+.sass-cache/
+vendor/bundle/
 .DS_Store

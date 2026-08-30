@@ -8,7 +8,6 @@ use KitAudit\Config;
 use KitAudit\CredentialStore;
 use KitAudit\Database;
 use KitAudit\KitApiClient;
-use KitAudit\OAuthService;
 use KitAudit\ReengagementService;
 use KitAudit\Settings;
 use KitAudit\SyncService;
@@ -20,7 +19,6 @@ require_once __DIR__ . '/Config.php';
 require_once __DIR__ . '/Authentication.php';
 require_once __DIR__ . '/Database.php';
 require_once __DIR__ . '/CredentialStore.php';
-require_once __DIR__ . '/OAuthService.php';
 require_once __DIR__ . '/KitApiClient.php';
 require_once __DIR__ . '/Settings.php';
 require_once __DIR__ . '/AuditService.php';
@@ -66,19 +64,16 @@ $envValues = load_env_file($projectRoot . '/.env');
 $config = new Config(array_merge($envValues, [
     'APP_ENV' => getenv('APP_ENV') !== false ? (string) getenv('APP_ENV') : ($envValues['APP_ENV'] ?? 'local'),
     'APP_PASSWORD' => getenv('APP_PASSWORD') !== false ? (string) getenv('APP_PASSWORD') : ($envValues['APP_PASSWORD'] ?? ''),
+    'APP_ALLOW_NO_AUTH' => getenv('APP_ALLOW_NO_AUTH') !== false ? (string) getenv('APP_ALLOW_NO_AUTH') : ($envValues['APP_ALLOW_NO_AUTH'] ?? '0'),
     'KIT_API_KEY' => getenv('KIT_API_KEY') !== false ? (string) getenv('KIT_API_KEY') : ($envValues['KIT_API_KEY'] ?? ''),
 ]));
 
 date_default_timezone_set('UTC');
 ini_set('display_errors', '0');
 ini_set('session.use_strict_mode', '1');
-$requestHost = strtolower((string) ($_SERVER['HTTP_HOST'] ?? ''));
-$requestHostName = strtok($requestHost, ':') ?: '';
-$directHttps = !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off';
-$forwardedHttps = $config->trustsProxy() && strtolower(trim(explode(',', (string) ($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? ''), 2)[0])) === 'https';
 session_set_cookie_params([
     'httponly' => true,
-    'secure' => $directHttps || $forwardedHttps || str_ends_with($requestHostName, '.test'),
+    'secure' => true,
     'samesite' => 'Lax',
 ]);
 session_start();
@@ -94,8 +89,7 @@ $database->migrate($projectRoot . '/database/migrations');
 $settingsStore = new Settings($database);
 $settings = $settingsStore->all();
 $credentials = new CredentialStore($database, $config, $projectRoot . '/storage/.credentials.key');
-$oauth = new OAuthService($credentials, $config, $projectRoot . '/storage/oauth-refresh.lock');
-$kit = new KitApiClient($credentials, $oauth);
+$kit = new KitApiClient($credentials);
 $audit = new AuditService($database);
 $sync = new SyncService($database, $kit, $settingsStore);
 $cleanup = new CleanupService($database, $kit, $audit);

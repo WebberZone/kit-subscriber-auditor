@@ -30,7 +30,7 @@ ob_start();
     </section>
 
     <?php if (!$apiConfigured): ?>
-        <div class="notice notice-warn"><strong>Kit connection not configured.</strong> Connect Kit via OAuth or add an API key from Settings before syncing.</div>
+        <div class="notice notice-warn"><strong>Kit connection not configured.</strong> Add an API key from Settings before syncing.</div>
     <?php endif; ?>
 
     <section class="progress-card" data-sync-panel data-status="<?= e($syncProgress['status'] ?? 'idle') ?>">

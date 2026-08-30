@@ -358,15 +358,6 @@ final class ReengagementService
             return;
         }
 
-        if ($this->kit->hasOAuthCredentials()) {
-            $this->bulkTagBatch($campaignId, (int) $campaign['tag_id'], $items);
-            $this->database->execute(
-                'UPDATE reengagement_campaigns SET updated_at = :updated_at WHERE id = :id',
-                ['updated_at' => utc_now(), 'id' => $campaignId]
-            );
-            return;
-        }
-
         foreach ($items as $item) {
             try {
                 $this->kit->tagSubscriber((int) $campaign['tag_id'], (int) $item['subscriber_id']);
@@ -380,57 +371,6 @@ final class ReengagementService
             'UPDATE reengagement_campaigns SET updated_at = :updated_at WHERE id = :id',
             ['updated_at' => utc_now(), 'id' => $campaignId]
         );
-    }
-
-    /** @param list<array<string, mixed>> $items */
-    private function bulkTagBatch(int $campaignId, int $tagId, array $items): void
-    {
-        $taggings = array_map(
-            static fn (array $item): array => [
-                'tag_id' => $tagId,
-                'subscriber_id' => (int) $item['subscriber_id'],
-            ],
-            $items
-        );
-
-        try {
-            $response = $this->kit->bulkTagSubscribers($taggings);
-        } catch (KitApiException $exception) {
-            // A bulk request may have reached Kit before the connection failed. Do not retry it
-            // automatically; record the entire batch as uncertain for explicit operator review.
-            foreach ($items as $item) {
-                $this->markTagFailure($campaignId, (int) $item['id'], 'Bulk Kit tagging outcome was uncertain: ' . $exception->getMessage());
-            }
-            return;
-        }
-
-        $successfulIds = [];
-        foreach (($response['subscribers'] ?? []) as $subscriber) {
-            $subscriberId = $this->responseSubscriberId($subscriber);
-            if ($subscriberId !== null) {
-                $successfulIds[$subscriberId] = true;
-            }
-        }
-        $failureMessages = [];
-        foreach (($response['failures'] ?? []) as $failure) {
-            $subscriberId = $this->responseSubscriberId($failure);
-            if ($subscriberId !== null) {
-                $failureMessages[$subscriberId] = $this->responseFailureMessage($failure);
-            }
-        }
-
-        foreach ($items as $item) {
-            $subscriberId = (int) $item['subscriber_id'];
-            if (isset($successfulIds[$subscriberId])) {
-                $this->markTagSuccess($campaignId, (int) $item['id']);
-                continue;
-            }
-            $this->markTagFailure(
-                $campaignId,
-                (int) $item['id'],
-                $failureMessages[$subscriberId] ?? 'Kit did not report this bulk tagging operation as successful.'
-            );
-        }
     }
 
     private function markTagSuccess(int $campaignId, int $itemId): void
@@ -459,45 +399,6 @@ final class ReengagementService
             'UPDATE reengagement_campaigns SET failed_items = failed_items + 1, updated_at = :updated_at WHERE id = :id',
             ['updated_at' => utc_now(), 'id' => $campaignId]
         );
-    }
-
-    private function responseSubscriberId(mixed $response): ?int
-    {
-        if (!is_array($response)) {
-            return null;
-        }
-        if (isset($response['subscriber_id']) && is_numeric($response['subscriber_id'])) {
-            return (int) $response['subscriber_id'];
-        }
-        if (isset($response['id']) && is_numeric($response['id'])) {
-            return (int) $response['id'];
-        }
-        if (is_array($response['tagging'] ?? null) && is_numeric($response['tagging']['subscriber_id'] ?? null)) {
-            return (int) $response['tagging']['subscriber_id'];
-        }
-
-        return null;
-    }
-
-    private function responseFailureMessage(mixed $response): string
-    {
-        if (!is_array($response)) {
-            return 'Kit reported a bulk tagging failure.';
-        }
-        $errors = $response['errors'] ?? null;
-        if (is_array($errors)) {
-            $messages = array_values(array_filter($errors, 'is_string'));
-            if ($messages !== []) {
-                return implode('; ', $messages);
-            }
-        }
-        foreach (['error', 'message'] as $key) {
-            if (is_string($response[$key] ?? null) && $response[$key] !== '') {
-                return $response[$key];
-            }
-        }
-
-        return 'Kit reported a bulk tagging failure.';
     }
 
     private function finishTagging(int $campaignId): void

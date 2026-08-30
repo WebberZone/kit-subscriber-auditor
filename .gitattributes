@@ -1,0 +1,14 @@
+/.github/ export-ignore
+/.gitignore export-ignore
+/.gitattributes export-ignore
+/_config.yml export-ignore
+/_includes/ export-ignore
+/_layouts/ export-ignore
+/docs/ export-ignore
+/site-assets/ export-ignore
+/Gemfile export-ignore
+/Gemfile.lock export-ignore
+/index.md export-ignore
+/tests/ export-ignore
+/build-zip.sh export-ignore
+/storage/ export-ignore

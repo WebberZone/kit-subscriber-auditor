@@ -2,6 +2,14 @@
     "name": "webberzone/kit-subscriber-auditor",
     "description": "Local-first Kit subscriber audit and cleanup dashboard.",
     "type": "project",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Ajay D'Souza",
+            "email": "ajay@webberzone.com",
+            "role": "Developer"
+        }
+    ],
     "require": {
         "php": ">=8.3"
     },
@@ -10,4 +18,3 @@
         "lint": "php tests/lint.php"
     }
 }
-
