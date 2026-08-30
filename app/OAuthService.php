@@ -104,7 +104,11 @@ final class OAuthService
                     throw new HttpException('Kit OAuth was not approved: ' . $this->safeOAuthError($query[$key]), 422);
                 }
             }
-            throw new HttpException('Kit did not return an authorization code. Start the connection again.', 422);
+            $keys = array_values(array_filter(array_keys($query), static fn (mixed $key): bool => is_string($key) && preg_match('/\A[a-z_]+\z/', $key) === 1));
+            throw new HttpException(
+                'Kit did not return an authorization code. Callback fields received: ' . ($keys === [] ? 'none' : implode(', ', $keys)) . '.',
+                422
+            );
         }
         if (!is_string($flow['state'] ?? null) || !hash_equals($flow['state'], $state)) {
             throw new HttpException('The Kit OAuth callback could not be verified. Start the connection again.', 422);
