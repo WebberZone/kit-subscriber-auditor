@@ -25,4 +25,4 @@ git push origin main --follow-tags
 gh release create v1.0.0 --generate-notes
 ```
 
-The Pages workflow publishes this documentation site from `main` at `https://ajaydsouza.github.io/kit-subscriber-auditor/` once GitHub Pages is enabled for the repository using GitHub Actions.
+The companion public `kit-subscriber-auditor-gh-pages` repository publishes the mirrored documentation at `https://ajay.social/kit-subscriber-auditor-gh-pages/`. The private application repository keeps the canonical source alongside the code; update the public docs repository when documentation changes.
