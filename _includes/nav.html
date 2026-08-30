@@ -1,7 +1,12 @@
 <header class="site-nav">
   <div class="nav-inner">
-    <a class="brand" href="{{ '/' | relative_url }}"><span class="brand-mark">K</span><span>Kit Subscriber Audit</span></a>
+    <a class="brand" href="https://webberzone.github.io/" aria-label="WebberZone home">
+      <img src="{{ '/site-assets/images/WZ_Horizontal_OnLight.svg' | relative_url }}" alt="WebberZone" width="200" height="36">
+    </a>
+    <span class="brand-context" aria-hidden="true">/</span>
+    <span class="product-name">Kit Subscriber Audit</span>
     <nav class="nav-links" aria-label="Primary navigation">
+      <a href="{{ '/' | relative_url }}">Overview</a>
       <a href="{{ '/docs/getting-started/' | relative_url }}">Docs</a>
       <a href="{{ '/docs/security/' | relative_url }}">Security</a>
       <a class="nav-github" href="https://github.com/WebberZone/kit-subscriber-auditor" target="_blank" rel="noreferrer">GitHub ↗</a>
