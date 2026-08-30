@@ -98,37 +98,38 @@ final class OAuthService
 
         $state = $query['state'] ?? null;
         $code = $query['code'] ?? null;
-        if (!is_string($state) || !is_string($code) || $state === '' || $code === '') {
+        if ($state !== null && !is_string($state)) {
+            throw new HttpException('The Kit OAuth callback could not be verified. Start the connection again.', 422);
+        }
+        if (!is_string($code) || $code === '') {
             foreach (['error_description', 'error', 'error_reason'] as $key) {
                 if (is_string($query[$key] ?? null) && $query[$key] !== '') {
                     throw new HttpException('Kit OAuth was not approved: ' . $this->safeOAuthError($query[$key]), 422);
                 }
             }
-            $keys = array_values(array_filter(array_keys($query), static fn (mixed $key): bool => is_string($key) && preg_match('/\A[a-z_]+\z/', $key) === 1));
-            throw new HttpException(
-                'Kit did not return an authorization code. Callback fields received: ' . ($keys === [] ? 'none' : implode(', ', $keys)) . '.',
-                422
-            );
+            throw new HttpException('Kit did not return an authorization code. Start the connection again.', 422);
         }
-        if (!is_string($flow['state'] ?? null) || !hash_equals($flow['state'], $state)) {
+        if (!is_string($flow['state'] ?? null) || ($state !== null && $state !== '' && !hash_equals($flow['state'], $state))) {
             throw new HttpException('The Kit OAuth callback could not be verified. Start the connection again.', 422);
         }
         if (!is_string($flow['verifier'] ?? null) || !is_string($flow['nonce'] ?? null)) {
             throw new HttpException('The Kit OAuth session is invalid. Start the connection again.', 422);
         }
-        if (!is_string($query['oauth_nonce'] ?? null) || !hash_equals($flow['nonce'], $query['oauth_nonce'])) {
+        if (isset($query['oauth_nonce']) && (!is_string($query['oauth_nonce']) || !hash_equals($flow['nonce'], $query['oauth_nonce']))) {
             throw new HttpException('The Kit OAuth callback could not be verified. Start the connection again.', 422);
         }
 
-        $stateData = $this->decodeState($state);
-        if (($stateData['client_id'] ?? '') !== $this->config->kitOAuthClientId()) {
-            throw new HttpException('The Kit OAuth client could not be verified. Start the connection again.', 422);
-        }
-        $expectedReturnTo = $this->config->kitOAuthReturnUri()
-            . (str_contains($this->config->kitOAuthReturnUri(), '?') ? '&' : '?')
-            . 'oauth_nonce=' . rawurlencode($flow['nonce']);
-        if (($stateData['return_to'] ?? '') !== $expectedReturnTo) {
-            throw new HttpException('The Kit OAuth callback destination could not be verified. Start the connection again.', 422);
+        if ($state !== null && $state !== '') {
+            $stateData = $this->decodeState($state);
+            if (($stateData['client_id'] ?? '') !== $this->config->kitOAuthClientId()) {
+                throw new HttpException('The Kit OAuth client could not be verified. Start the connection again.', 422);
+            }
+            $expectedReturnTo = $this->config->kitOAuthReturnUri()
+                . (str_contains($this->config->kitOAuthReturnUri(), '?') ? '&' : '?')
+                . 'oauth_nonce=' . rawurlencode($flow['nonce']);
+            if (($stateData['return_to'] ?? '') !== $expectedReturnTo) {
+                throw new HttpException('The Kit OAuth callback destination could not be verified. Start the connection again.', 422);
+            }
         }
 
         $tokens = $this->tokenRequest([
