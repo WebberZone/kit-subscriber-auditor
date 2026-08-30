@@ -99,8 +99,12 @@ final class OAuthService
         $state = $query['state'] ?? null;
         $code = $query['code'] ?? null;
         if (!is_string($state) || !is_string($code) || $state === '' || $code === '') {
-            $error = is_string($query['error_description'] ?? null) ? $query['error_description'] : 'Kit did not return an authorization code.';
-            throw new HttpException($this->safeOAuthError($error), 422);
+            foreach (['error_description', 'error', 'error_reason'] as $key) {
+                if (is_string($query[$key] ?? null) && $query[$key] !== '') {
+                    throw new HttpException('Kit OAuth was not approved: ' . $this->safeOAuthError($query[$key]), 422);
+                }
+            }
+            throw new HttpException('Kit did not return an authorization code. Start the connection again.', 422);
         }
         if (!is_string($flow['state'] ?? null) || !hash_equals($flow['state'], $state)) {
             throw new HttpException('The Kit OAuth callback could not be verified. Start the connection again.', 422);
