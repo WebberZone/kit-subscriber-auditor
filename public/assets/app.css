@@ -144,6 +144,7 @@ input[type="checkbox"] { accent-color: var(--mint-deep); width: 16px; height: 16
 .tag-choice-copy .section-kicker { margin-bottom: 0; }
 .tag-choice-copy strong { font-size: .9rem; }
 .tag-choice-copy small { max-width: 430px; font-size: .75rem; line-height: 1.45; }
+.tag-choice-copy a { color: var(--mint-deep); font-weight: 750; }
 .tag-create-form { display: flex; align-items: end; gap: 8px; flex: 0 0 290px; }
 .tag-create-form label { flex: 1; }
 .tag-create-form input { min-width: 0; }

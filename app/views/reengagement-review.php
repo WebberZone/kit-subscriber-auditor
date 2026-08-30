@@ -21,7 +21,7 @@ ob_start();
         <section class="review-card">
             <div class="section-heading"><div><span class="section-kicker">Proposed cohort</span><h2><?= number_format(count($candidates)) ?> subscriber<?= count($candidates) === 1 ? '' : 's' ?></h2></div><span class="status-pill status-<?= $selectedTagName !== null ? 'complete' : 'idle' ?>"><?= $selectedTagName !== null ? 'Tag: ' . e($selectedTagName) : 'No tag selected' ?></span></div>
             <div class="tag-choice">
-                <div class="tag-choice-copy"><span class="section-kicker">Tag choice</span><strong>Choose an existing tag or create one here</strong><small>Creating a tag is safe and reversible. Kit returns the existing tag if the name is already in use.</small></div>
+                <div class="tag-choice-copy"><span class="section-kicker">Tag choice</span><strong>Choose an existing tag or create one here</strong><small>Creating a tag is safe and reversible. Kit returns the existing tag if the name is already in use. <a href="/reengagement/review">Refresh tags</a></small></div>
                 <form method="post" action="/reengagement/tag/create" class="tag-create-form" data-reengagement-tag-create>
                     <input type="hidden" name="csrf_token" value="<?= e($csrfToken) ?>">
                     <label><span class="sr-only">New Kit tag name</span><input type="text" name="tag_name" maxlength="100" placeholder="e.g. COLD" required <?= !$apiConfigured ? 'disabled' : '' ?>></label>
