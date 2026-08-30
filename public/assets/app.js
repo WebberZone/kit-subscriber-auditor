@@ -242,7 +242,7 @@
         }
     }
 
-    async function submitReengagementForm(form, endpoint, redirectPath) {
+    async function submitReengagementForm(form, endpoint, redirectPath, defaultButtonLabel) {
         const button = form.querySelector('button[type="submit"]');
         if (button) { button.disabled = true; button.textContent = 'Starting…'; }
         try {
@@ -252,14 +252,14 @@
             window.location.href = redirectPath;
         } catch (error) {
             window.alert(error.message);
-            if (button) { button.disabled = false; button.textContent = endpoint === '/reengagement/start' ? 'Apply tag and track cohort' : 'Resync tagged subscribers'; }
+            if (button) { button.disabled = false; button.textContent = defaultButtonLabel; }
         }
     }
 
     const reengagementStartForm = document.querySelector('[data-reengagement-start]');
     if (reengagementStartForm) reengagementStartForm.addEventListener('submit', event => {
         event.preventDefault();
-        submitReengagementForm(reengagementStartForm, '/reengagement/start', '/reengagement');
+        submitReengagementForm(reengagementStartForm, '/reengagement/start', '/reengagement', 'Apply tag and track cohort');
     });
     const reengagementTagCreateForm = document.querySelector('[data-reengagement-tag-create]');
     if (reengagementTagCreateForm) reengagementTagCreateForm.addEventListener('submit', async event => {
@@ -283,7 +283,24 @@
     const reengagementResyncForm = document.querySelector('[data-reengagement-resync]');
     if (reengagementResyncForm) reengagementResyncForm.addEventListener('submit', event => {
         event.preventDefault();
-        submitReengagementForm(reengagementResyncForm, '/reengagement/resync', '/reengagement');
+        submitReengagementForm(reengagementResyncForm, '/reengagement/resync', '/reengagement', 'Resync tagged subscribers');
+    });
+    const reengagementRefreshTagForm = document.querySelector('[data-reengagement-refresh-tag]');
+    if (reengagementRefreshTagForm) reengagementRefreshTagForm.addEventListener('submit', async event => {
+        event.preventDefault();
+        const button = reengagementRefreshTagForm.querySelector('button[type="submit"]');
+        const message = document.querySelector('[data-reengagement-refresh-message]');
+        if (button) { button.disabled = true; button.textContent = 'Refreshing…'; }
+        try {
+            const response = await fetch('/reengagement/refresh-tag', { method: 'POST', body: new FormData(reengagementRefreshTagForm), headers: { 'Accept': 'application/json' }, credentials: 'same-origin' });
+            const payload = await response.json().catch(() => ({ error: 'The server returned an invalid response.' }));
+            if (!response.ok) throw new Error(payload.error || 'Unable to refresh tag statuses.');
+            if (message) { message.hidden = false; message.textContent = payload.message || 'Tag statuses refreshed.'; }
+            if (button) { button.disabled = false; button.textContent = 'Refresh tag statuses'; }
+        } catch (error) {
+            window.alert(error.message);
+            if (button) { button.disabled = false; button.textContent = 'Refresh tag statuses'; }
+        }
     });
     const reengagementPanel = document.querySelector('[data-reengagement-panel]');
     if (reengagementPanel && ['tagging', 'resyncing'].includes(reengagementPanel.dataset.status)) runReengagement();

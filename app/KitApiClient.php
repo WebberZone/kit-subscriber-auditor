@@ -109,15 +109,19 @@ final class KitApiClient
     /**
      * @return array<string, mixed>
      */
-    public function listTagSubscribers(int $tagId, ?string $after = null): array
+    public function listTagSubscribers(int $tagId, ?string $after = null, string $status = 'active', bool $includeTotalCount = false): array
     {
         if ($tagId < 1) {
             throw new KitApiException('Invalid Kit tag ID.', 422);
         }
+        if (!in_array($status, ['active', 'inactive', 'bounced', 'complained', 'cancelled', 'all'], true)) {
+            throw new KitApiException('Invalid Kit subscriber status.', 422);
+        }
 
         $query = [
-            'status' => 'active',
+            'status' => $status,
             'per_page' => 1000,
+            'include_total_count' => $includeTotalCount ? 'true' : 'false',
         ];
         if ($after !== null && $after !== '') {
             $query['after'] = $after;

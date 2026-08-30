@@ -18,6 +18,17 @@ ob_start();
         <div class="notice notice-warn"><strong>No default re-engagement tag selected.</strong> You can choose or create the tag on the cohort review screen; Settings is only needed when choosing a default for resync.</div>
     <?php endif; ?>
 
+    <?php if ($canResync): ?>
+        <section class="settings-card tag-refresh-card">
+            <div><span class="section-kicker">Local state refresh</span><h2>Check the configured tag status</h2><p>Fetches this tag's current members with all Kit states, including <code>cancelled</code>, and updates only those local subscriber records. It does not fetch stats or change anything in Kit.</p></div>
+            <form method="post" action="/reengagement/refresh-tag" data-reengagement-refresh-tag>
+                <input type="hidden" name="csrf_token" value="<?= e($csrfToken) ?>">
+                <button class="button button-secondary" type="submit">Refresh tag statuses</button>
+            </form>
+            <div class="notice notice-good" data-reengagement-refresh-message role="status" hidden></div>
+        </section>
+    <?php endif; ?>
+
     <section class="progress-card" data-reengagement-panel data-status="<?= e($progressStatus) ?>">
         <div class="progress-header"><div><span class="section-kicker">Cohort status</span><strong data-reengagement-message><?= e($reengagementProgress['message'] ?? 'No re-engagement run has started.') ?></strong></div><span class="status-pill status-<?= e($progressStatus) ?>" data-reengagement-status><?= e(str_replace('_', ' ', $progressStatus)) ?></span></div>
         <div class="progress-track"><progress data-reengagement-progress max="100" value="<?= (int) ($reengagementProgress['percent'] ?? 0) ?>" aria-label="Re-engagement progress"></progress></div>

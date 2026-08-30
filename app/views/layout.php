@@ -35,6 +35,6 @@
         <a href="https://developers.kit.com/api-reference/subscribers/list-subscribers" target="_blank" rel="noreferrer">Kit API docs ↗</a>
     </footer>
 </div>
-<script src="/assets/app.js?v=8" defer></script>
+<script src="/assets/app.js?v=10" defer></script>
 </body>
 </html>

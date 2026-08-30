@@ -361,6 +361,31 @@ try {
         json_response($reengagement->latestProgress());
     }
 
+    if ($path === '/reengagement/refresh-tag' && $method === 'POST') {
+        verify_csrf();
+        if (!$kit->hasCredentials()) {
+            throw new HttpException('Connect Kit via OAuth or configure an API key in Settings before refreshing tag statuses.', 422);
+        }
+        $tagId = (int) ($settings['reengagement_tag_id'] ?? 0);
+        $result = $reengagement->refreshTagStatus($tagId);
+        $states = $result['states'];
+        $otherCount = max(0, $result['fetched'] - (int) ($states['cancelled'] ?? 0) - (int) ($states['active'] ?? 0));
+        $message = sprintf(
+            'Refreshed %d members of Kit tag #%d. Local state now shows %d cancelled, %d active, and %d other member%s.',
+            $result['fetched'],
+            $tagId,
+            (int) ($states['cancelled'] ?? 0),
+            (int) ($states['active'] ?? 0),
+            $otherCount,
+            $otherCount === 1 ? '' : 's'
+        );
+        if (str_contains(strtolower((string) ($_SERVER['HTTP_ACCEPT'] ?? '')), 'application/json')) {
+            json_response(['message' => $message, 'result' => $result]);
+        }
+        flash('success', $message);
+        redirect('/reengagement');
+    }
+
     if ($path === '/export.csv' && $method === 'GET') {
         $filters = [
             'q' => trim((string) ($_GET['q'] ?? '')),

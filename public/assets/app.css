@@ -163,6 +163,10 @@ input[type="checkbox"] { accent-color: var(--mint-deep); width: 16px; height: 16
 .review-row { padding: 11px 0; border-bottom: 1px solid #edf1ee; }
 .review-row:last-child { border-bottom: 0; }
 .confirm-form { max-width: 610px; }
+.tag-refresh-card { display: flex; align-items: end; justify-content: space-between; gap: 20px; }
+.tag-refresh-card h2 { font-size: 1.2rem; margin-bottom: 8px; }
+.tag-refresh-card p { max-width: 720px; color: var(--muted); font-size: .84rem; line-height: 1.5; margin: 0; }
+.tag-refresh-card form { flex: 0 0 auto; }
 .workflow-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-bottom: 24px; }
 .workflow-card { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; margin-bottom: 0; }
 .workflow-card h2 { font-size: 1.28rem; }
@@ -198,6 +202,9 @@ input[type="checkbox"] { accent-color: var(--mint-deep); width: 16px; height: 16
     .sync-worker-row { align-items: flex-start; flex-direction: column; gap: 5px; }
     .tag-choice { align-items: stretch; flex-direction: column; }
     .tag-create-form { flex-basis: auto; }
+    .tag-refresh-card { align-items: flex-start; flex-direction: column; }
+    .tag-refresh-card form { width: 100%; }
+    .tag-refresh-card .button { width: 100%; }
     .filters { grid-template-columns: 1fr; }
     .search-field { grid-column: auto; }
     .filters .button { width: 100%; }

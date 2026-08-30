@@ -46,6 +46,64 @@ final class ReengagementService
         return $tags;
     }
 
+    /**
+     * Refresh subscriber states for one Kit tag without fetching the full list or any stats.
+     *
+     * @return array{tag_id: int, fetched: int, total: int, states: array<string, int>, refreshed_at: string}
+     */
+    public function refreshTagStatus(int $tagId): array
+    {
+        $this->ensureCanStart();
+        if ($tagId < 1) {
+            throw new HttpException('Choose a Kit tag before refreshing its subscriber statuses.', 422);
+        }
+
+        $after = null;
+        $fetched = 0;
+        $reportedTotal = null;
+        $states = [];
+        for ($page = 0; $page < self::MAX_PAGES; $page++) {
+            $response = $this->kit->listTagSubscribers($tagId, $after, 'all', $page === 0);
+            $subscribers = $response['subscribers'] ?? [];
+            if (!is_array($subscribers)) {
+                throw new KitApiException('Kit returned an invalid tagged subscriber list.');
+            }
+
+            $this->database->transaction(function () use ($subscribers, &$fetched, &$states): void {
+                foreach ($subscribers as $subscriber) {
+                    if (!is_array($subscriber) || !isset($subscriber['id'], $subscriber['email_address'], $subscriber['created_at'])) {
+                        continue;
+                    }
+                    $this->upsertTaggedSubscriber($subscriber);
+                    $fetched++;
+                    $state = (string) ($subscriber['state'] ?? 'unknown');
+                    $states[$state] = ($states[$state] ?? 0) + 1;
+                }
+            });
+
+            $pagination = is_array($response['pagination'] ?? null) ? $response['pagination'] : [];
+            if ($page === 0 && isset($pagination['total_count'])) {
+                $reportedTotal = (int) $pagination['total_count'];
+            }
+            if (!(bool) ($pagination['has_next_page'] ?? false)) {
+                break;
+            }
+            $next = (string) ($pagination['end_cursor'] ?? '');
+            if ($next === '' || $next === $after) {
+                throw new KitApiException('Kit returned an invalid tagged subscriber pagination cursor.');
+            }
+            $after = $next;
+        }
+
+        return [
+            'tag_id' => $tagId,
+            'fetched' => $fetched,
+            'total' => $reportedTotal ?? $fetched,
+            'states' => $states,
+            'refreshed_at' => utc_now(),
+        ];
+    }
+
     /** @return list<array{id: int, subject: string, sent_at: string}> */
     public function availableBroadcasts(): array
     {
@@ -537,6 +595,7 @@ final class ReengagementService
                 created_at = excluded.created_at,
                 canceled_at = excluded.canceled_at,
                 raw_subscriber_json = excluded.raw_subscriber_json,
+                last_sync_error = NULL,
                 updated_local_at = excluded.updated_local_at',
             [
                 'id' => (int) $subscriber['id'],
