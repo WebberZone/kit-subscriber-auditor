@@ -14,6 +14,7 @@ final class Settings
         'batch_size' => '50',
         'stats_refresh_hours' => '24',
         'dry_run' => '1',
+        'reengagement_tag_id' => '0',
     ];
 
     public function __construct(private readonly Database $database)
@@ -52,6 +53,7 @@ final class Settings
         $batchSize = $this->boundedInt($input['batch_size'] ?? 50, 1, 100);
         $statsRefreshHours = $this->boundedInt($input['stats_refresh_hours'] ?? 24, 1, 8760);
         $dryRun = isset($input['dry_run']) ? 1 : 0;
+        $reengagementTagId = $this->boundedInt($input['reengagement_tag_id'] ?? 0, 0, 2147483647);
         $values = [
             'inactivity_threshold_days' => $threshold,
             'min_emails_sent' => $minSent,
@@ -59,6 +61,7 @@ final class Settings
             'batch_size' => $batchSize,
             'stats_refresh_hours' => $statsRefreshHours,
             'dry_run' => $dryRun,
+            'reengagement_tag_id' => $reengagementTagId,
         ];
         foreach ($values as $key => $value) {
             $this->database->execute(

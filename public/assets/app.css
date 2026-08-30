@@ -64,8 +64,8 @@ h2 { font-size: 1.55rem; }
 .progress-header, .progress-meta, .section-heading, .settings-row, .form-actions, .selection-toolbar, .pagination { display: flex; align-items: center; justify-content: space-between; gap: 15px; }
 .progress-header strong { display: block; font-size: .91rem; margin-top: 2px; }
 .status-pill { display: inline-flex; align-items: center; border-radius: 99px; padding: 6px 10px; font-size: .71rem; text-transform: capitalize; font-weight: 750; background: #eef2ef; color: var(--muted); white-space: nowrap; }
-.status-complete, .status-completed, .status-completed_with_errors, .status-dry_run_complete { background: #e0f2e5; color: #236640; }
-.status-running, .status-pending, .status-fetching_stats, .status-fetching_subscribers { background: #fff0d8; color: #88531f; }
+.status-complete, .status-completed, .status-completed_with_errors, .status-dry_run_complete, .status-tagged, .status-tagged_with_errors { background: #e0f2e5; color: #236640; }
+.status-running, .status-pending, .status-tagging, .status-resyncing, .status-fetching_tag_members, .status-fetching_stats, .status-fetching_subscribers { background: #fff0d8; color: #88531f; }
 .status-failed { background: #ffe5e5; color: #963d3d; }
 .progress-track { height: 7px; margin: 18px 0 9px; border-radius: 20px; background: #edf1ee; overflow: hidden; }
 .progress-track progress { display: block; width: 100%; height: 7px; border: 0; border-radius: inherit; background: #edf1ee; }
@@ -115,6 +115,7 @@ input[type="checkbox"] { accent-color: var(--mint-deep); width: 16px; height: 16
 .rate-chip { display: inline-block; background: #f0f4f1; color: #496252; padding: 4px 6px; border-radius: 5px; font-size: .69rem; margin-right: 3px; }
 .empty, .empty-card { text-align: center; color: var(--muted); padding: 40px 16px; }
 .selection-toolbar { border-top: 1px solid var(--line); padding: 12px 0; color: var(--muted); font-size: .8rem; }
+.selection-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
 .selection-toolbar strong { color: var(--ink); }
 .pagination { padding-top: 18px; font-size: .79rem; color: var(--muted); }
 .pagination a, .form-actions a { color: var(--mint-deep); font-weight: 750; text-decoration: none; }
@@ -143,6 +144,11 @@ input[type="checkbox"] { accent-color: var(--mint-deep); width: 16px; height: 16
 .review-row { padding: 11px 0; border-bottom: 1px solid #edf1ee; }
 .review-row:last-child { border-bottom: 0; }
 .confirm-form { max-width: 610px; }
+.workflow-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-bottom: 24px; }
+.workflow-card { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; margin-bottom: 0; }
+.workflow-card h2 { font-size: 1.28rem; }
+.workflow-card p { color: var(--muted); font-size: .86rem; line-height: 1.55; margin: 0 0 5px; }
+.workflow-card .button { margin-top: auto; }
 .footer { border-top: 1px solid rgba(150, 170, 158, .35); padding-top: 18px; display: flex; justify-content: space-between; color: var(--muted); font-size: .72rem; }
 .footer a { color: var(--mint-deep); text-decoration: none; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
@@ -153,6 +159,7 @@ input[type="checkbox"] { accent-color: var(--mint-deep); width: 16px; height: 16
     .cold-stats { width: 100%; justify-content: space-between; gap: 8px; }
     .filters { grid-template-columns: 1fr 1fr; }
     .search-field { grid-column: span 2; }
+    .workflow-grid { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 600px) {
@@ -167,6 +174,8 @@ input[type="checkbox"] { accent-color: var(--mint-deep); width: 16px; height: 16
     .table-section, .settings-card, .review-card, .info-card { padding: 16px; }
     .section-heading { align-items: flex-start; flex-direction: column; }
     .sync-actions { justify-content: flex-start; }
+    .selection-toolbar { align-items: flex-start; flex-direction: column; }
+    .selection-actions { justify-content: flex-start; }
     .sync-worker-row { align-items: flex-start; flex-direction: column; gap: 5px; }
     .filters { grid-template-columns: 1fr; }
     .search-field { grid-column: auto; }

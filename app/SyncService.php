@@ -26,6 +26,13 @@ final class SyncService
             throw new HttpException('Wait for the active cleanup job to finish before starting a sync.', 409);
         }
 
+        $activeReengagement = $this->database->fetchOne(
+            "SELECT id FROM reengagement_campaigns WHERE status IN ('tagging', 'resyncing') ORDER BY id DESC LIMIT 1"
+        );
+        if ($activeReengagement !== null) {
+            throw new HttpException('Wait for the active re-engagement run to finish before starting a sync.', 409);
+        }
+
         $active = $this->database->fetchOne(
             "SELECT * FROM sync_runs WHERE status IN ('running', 'pending') ORDER BY id DESC LIMIT 1"
         );

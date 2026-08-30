@@ -56,9 +56,94 @@ final class KitApiClient
     /**
      * @return array<string, mixed>
      */
-    public function getSubscriberStats(int $subscriberId): array
+    public function getSubscriberStats(int $subscriberId, ?string $emailSentAfter = null): array
     {
-        return $this->request('GET', '/subscribers/' . $subscriberId . '/stats');
+        $query = [];
+        if ($emailSentAfter !== null && $emailSentAfter !== '') {
+            $query['email_sent_after'] = $emailSentAfter;
+        }
+
+        return $this->request('GET', '/subscribers/' . $subscriberId . '/stats', $query);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function listTags(?string $after = null): array
+    {
+        $query = [
+            'per_page' => 1000,
+        ];
+        if ($after !== null && $after !== '') {
+            $query['after'] = $after;
+        }
+
+        return $this->request('GET', '/tags', $query);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function listTagSubscribers(int $tagId, ?string $after = null): array
+    {
+        if ($tagId < 1) {
+            throw new KitApiException('Invalid Kit tag ID.', 422);
+        }
+
+        $query = [
+            'status' => 'active',
+            'per_page' => 1000,
+        ];
+        if ($after !== null && $after !== '') {
+            $query['after'] = $after;
+        }
+
+        return $this->request('GET', '/tags/' . $tagId . '/subscribers', $query);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function listBroadcasts(?string $status = null, ?string $after = null): array
+    {
+        $query = [
+            'per_page' => 1000,
+            'slim' => 'true',
+        ];
+        if ($status !== null && $status !== '') {
+            $query['status'] = $status;
+        }
+        if ($after !== null && $after !== '') {
+            $query['after'] = $after;
+        }
+
+        return $this->request('GET', '/broadcasts', $query);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function getBroadcast(int $broadcastId): array
+    {
+        if ($broadcastId < 1) {
+            throw new KitApiException('Invalid Kit broadcast ID.', 422);
+        }
+
+        return $this->request('GET', '/broadcasts/' . $broadcastId);
+    }
+
+    public function tagSubscriber(int $tagId, int $subscriberId): void
+    {
+        if ($tagId < 1 || $subscriberId < 1) {
+            throw new KitApiException('Invalid Kit tag or subscriber ID.', 422);
+        }
+
+        $this->request(
+            'POST',
+            '/tags/' . $tagId . '/subscribers/' . $subscriberId,
+            [],
+            new \stdClass()
+        );
     }
 
     public function unsubscribeSubscriber(int $subscriberId): void

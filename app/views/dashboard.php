@@ -126,7 +126,7 @@ ob_start();
         <form method="post" action="/cleanup/review" data-selection-form>
             <input type="hidden" name="csrf_token" value="<?= e($csrfToken) ?>">
             <?php if ($filters['group'] === 'removal'): ?>
-                <div class="selection-toolbar"><span><strong data-selected-count>0</strong> selected</span><button class="button button-danger" type="submit" data-review-button disabled>Review selected for unsubscribe</button></div>
+                <div class="selection-toolbar"><span><strong data-selected-count>0</strong> selected</span><span class="selection-actions"><button class="button button-secondary" type="submit" formaction="/reengagement/review" data-reengagement-review-button disabled>Tag for re-engagement</button><button class="button button-danger" type="submit" data-review-button disabled>Review selected for unsubscribe</button></span></div>
             <?php endif; ?>
             <div class="table-wrap">
                 <table>

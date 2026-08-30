@@ -11,6 +11,7 @@ copy($root . '/database/migrations/001_initial.sql', $temporary . '/migrations/0
 copy($root . '/database/migrations/002_credentials.sql', $temporary . '/migrations/002_credentials.sql');
 copy($root . '/database/migrations/004_remove_oauth.sql', $temporary . '/migrations/004_remove_oauth.sql');
 copy($root . '/database/migrations/005_incremental_sync.sql', $temporary . '/migrations/005_incremental_sync.sql');
+copy($root . '/database/migrations/006_reengagement.sql', $temporary . '/migrations/006_reengagement.sql');
 
 require_once $root . '/app/Config.php';
 require_once $root . '/app/Database.php';
@@ -20,6 +21,7 @@ require_once $root . '/app/helpers.php';
 require_once $root . '/app/Settings.php';
 require_once $root . '/app/AuditService.php';
 require_once $root . '/app/SyncService.php';
+require_once $root . '/app/ReengagementService.php';
 
 use KitAudit\AuditService;
 use KitAudit\Config;

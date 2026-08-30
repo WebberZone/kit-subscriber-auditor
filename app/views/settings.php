@@ -41,6 +41,15 @@
         </form>
     </section>
 
+    <section class="settings-card">
+        <div class="settings-row"><div><span class="section-kicker">Re-engagement</span><strong>Tagged click-back workflow</strong><small>Choose the Kit tag used for a re-engagement cohort. The app never sends the email; create and send that broadcast from Kit.</small></div></div>
+        <form method="post" action="/settings" class="settings-form">
+            <input type="hidden" name="csrf_token" value="<?= e($csrfToken) ?>">
+            <label><span>Re-engagement tag</span><small>Tags are loaded from Kit. Create one in Kit first, then reload this page.</small><select name="reengagement_tag_id"><option value="0">Choose a tag</option><?php foreach ($availableTags ?? [] as $tag): ?><option value="<?= (int) $tag['id'] ?>" <?= (int) $settings['reengagement_tag_id'] === (int) $tag['id'] ? 'selected' : '' ?>><?= e($tag['name']) ?> (#<?= (int) $tag['id'] ?>)</option><?php endforeach; ?><?php if ((int) $settings['reengagement_tag_id'] > 0 && !array_filter($availableTags ?? [], static fn (array $tag): bool => (int) $tag['id'] === (int) $settings['reengagement_tag_id'])): ?><option value="<?= (int) $settings['reengagement_tag_id'] ?>" selected>Configured tag #<?= (int) $settings['reengagement_tag_id'] ?> (not found)</option><?php endif; ?></select></label>
+            <div class="form-actions"><button class="button button-primary" type="submit">Save re-engagement settings</button><a href="/reengagement">Open workflow</a></div>
+        </form>
+    </section>
+
     <section class="info-card"><span class="section-kicker">Rules in this app</span><p><strong>Removal candidates:</strong> no open and no click for the configured threshold, the configured number of sends since both forms of engagement, subscribed before the threshold, and at least the configured number of emails sent.</p><p><strong>Very cold:</strong> no open and no click for 365 days and at least 10 emails sent.</p><p><strong>Unsubscribe:</strong> Kit moves a subscriber to <code>cancelled</code>. Kit retains the record, history, and tags; Kit documents this as effectively permanent and requiring the subscriber's explicit permission to re-subscribe.</p><p><strong>Encryption:</strong> local credentials are authenticated-encrypted with a key in <code>storage/.credentials.key</code>. Both the key and SQLite database are excluded from Git.</p></section>
 </main>
 <?php $content = ob_get_clean(); require __DIR__ . '/layout.php'; ?>

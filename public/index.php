@@ -79,6 +79,7 @@ try {
             'subscriberResult' => $subscriberResult,
             'syncProgress' => $syncProgress,
             'cleanupProgress' => $cleanupProgress,
+            'reengagementProgress' => $reengagement->latestProgress(),
             'csrfToken' => csrf_token(),
             'flashMessages' => consume_flash(),
             'apiConfigured' => $credentials->hasApiKey(),
@@ -88,11 +89,20 @@ try {
     }
 
     if ($path === '/settings' && $method === 'GET') {
+        $availableTags = [];
+        if ($credentials->hasApiKey()) {
+            try {
+                $availableTags = $reengagement->availableTags();
+            } catch (KitApiException $exception) {
+                flash('error', 'Unable to load Kit tags: ' . $exception->getMessage());
+            }
+        }
         $template->render('settings', [
             'pageTitle' => 'Settings',
             'settings' => $settings,
             'apiConfigured' => $credentials->hasApiKey(),
             'apiKeySource' => $credentials->apiKeySource(),
+            'availableTags' => $availableTags,
             'csrfToken' => csrf_token(),
             'flashMessages' => consume_flash(),
             'authEnabled' => $auth->enabled(),
@@ -135,6 +145,83 @@ try {
 
     if ($path === '/sync/status' && $method === 'GET') {
         json_response($sync->latestProgress());
+    }
+
+    if ($path === '/reengagement' && $method === 'GET') {
+        $availableBroadcasts = [];
+        $broadcastError = null;
+        if ($credentials->hasApiKey()) {
+            try {
+                $availableBroadcasts = $reengagement->availableBroadcasts();
+            } catch (KitApiException $exception) {
+                $broadcastError = $exception->getMessage();
+            }
+        }
+        $template->render('reengagement', [
+            'pageTitle' => 'Re-engagement',
+            'settings' => $settings,
+            'reengagementProgress' => $reengagement->latestProgress(),
+            'availableBroadcasts' => $availableBroadcasts,
+            'broadcastError' => $broadcastError,
+            'staleRows' => $reengagement->staleRows(),
+            'csrfToken' => csrf_token(),
+            'flashMessages' => consume_flash(),
+            'apiConfigured' => $credentials->hasApiKey(),
+            'authEnabled' => $auth->enabled(),
+        ]);
+        exit;
+    }
+
+    if ($path === '/reengagement/review' && $method === 'POST') {
+        verify_csrf();
+        $ids = is_array($_POST['subscriber_ids'] ?? null) ? $_POST['subscriber_ids'] : [];
+        $candidates = $audit->removalCandidatesByIds($ids, $settings);
+        $_SESSION['reengagement_selection'] = array_map(static fn (array $row): int => (int) $row['id'], $candidates);
+        $template->render('reengagement-review', [
+            'pageTitle' => 'Review re-engagement tag',
+            'candidates' => $candidates,
+            'settings' => $settings,
+            'csrfToken' => csrf_token(),
+            'flashMessages' => consume_flash(),
+            'apiConfigured' => $credentials->hasApiKey(),
+            'authEnabled' => $auth->enabled(),
+        ]);
+        exit;
+    }
+
+    if ($path === '/reengagement/start' && $method === 'POST') {
+        verify_csrf();
+        if (!$credentials->hasApiKey()) {
+            throw new HttpException('Configure a Kit API key in Settings before tagging subscribers.', 422);
+        }
+        if (trim((string) ($_POST['confirm_phrase'] ?? '')) !== 'TAG') {
+            throw new HttpException('Type TAG to confirm applying the Kit tag.', 422);
+        }
+        if (empty($_POST['confirm_tag'])) {
+            throw new HttpException('Confirm that you want to apply the selected Kit tag.', 422);
+        }
+        $ids = is_array($_SESSION['reengagement_selection'] ?? null) ? $_SESSION['reengagement_selection'] : [];
+        $progress = $reengagement->startTagging($ids, $settings);
+        unset($_SESSION['reengagement_selection']);
+        $reengagement->launchWorker($settings['batch_size'], $projectRoot . '/bin/reengagement-worker.php', $projectRoot . '/storage/reengagement-worker.log');
+        json_response($progress);
+    }
+
+    if ($path === '/reengagement/resync' && $method === 'POST') {
+        verify_csrf();
+        if (!$credentials->hasApiKey()) {
+            throw new HttpException('Configure a Kit API key in Settings before resyncing the tag.', 422);
+        }
+        if (empty($_POST['confirm_resync'])) {
+            throw new HttpException('Confirm that you sent the selected Kit broadcast and want to resync the tag.', 422);
+        }
+        $progress = $reengagement->startResync($settings, (int) ($_POST['broadcast_id'] ?? 0));
+        $reengagement->launchWorker($settings['batch_size'], $projectRoot . '/bin/reengagement-worker.php', $projectRoot . '/storage/reengagement-worker.log');
+        json_response($progress);
+    }
+
+    if ($path === '/reengagement/status' && $method === 'GET') {
+        json_response($reengagement->latestProgress());
     }
 
     if ($path === '/export.csv' && $method === 'GET') {
@@ -253,20 +340,20 @@ try {
     http_response_code(404);
     $template->render('error', ['pageTitle' => 'Not found', 'message' => 'The requested page was not found.', 'csrfToken' => csrf_token(), 'authEnabled' => $auth->enabled()]);
 } catch (HttpException $exception) {
-    if (str_starts_with($path, '/sync/') || str_starts_with($path, '/cleanup/')) {
+    if (str_starts_with($path, '/sync/') || str_starts_with($path, '/cleanup/') || str_starts_with($path, '/reengagement/')) {
         json_response(['error' => $exception->getMessage()], $exception->status);
     }
     flash('error', $exception->getMessage());
     redirect($path === '/settings' ? '/settings' : ($path === '/login' ? '/login' : '/'));
 } catch (KitApiException $exception) {
-    if (str_starts_with($path, '/sync/') || str_starts_with($path, '/cleanup/')) {
+    if (str_starts_with($path, '/sync/') || str_starts_with($path, '/cleanup/') || str_starts_with($path, '/reengagement/')) {
         json_response(['error' => $exception->getMessage()], 502);
     }
     flash('error', $exception->getMessage());
     redirect('/');
 } catch (Throwable $exception) {
     error_log($exception->getMessage());
-    if (str_starts_with($path, '/sync/') || str_starts_with($path, '/cleanup/')) {
+    if (str_starts_with($path, '/sync/') || str_starts_with($path, '/cleanup/') || str_starts_with($path, '/reengagement/')) {
         json_response(['error' => 'Unexpected server error. Check the PHP error log.'], 500);
     }
     http_response_code(500);

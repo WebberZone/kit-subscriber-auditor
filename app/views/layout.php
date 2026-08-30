@@ -7,7 +7,7 @@
     <meta name="csrf-token" content="<?= e($csrfToken ?? '') ?>">
     <title><?= e($pageTitle ?? 'Kit subscriber audit') ?> · Kit Audit</title>
     <link rel="icon" href="/favicon.svg" type="image/svg+xml">
-    <link rel="stylesheet" href="/assets/app.css?v=2">
+    <link rel="stylesheet" href="/assets/app.css?v=3">
 </head>
 <body>
 <div class="shell">
@@ -18,6 +18,7 @@
         </a>
         <nav class="nav" aria-label="Primary navigation">
             <a href="/" class="<?= ($pageTitle ?? '') === 'Subscriber audit' ? 'active' : '' ?>">Audit</a>
+            <a href="/reengagement" class="<?= ($pageTitle ?? '') === 'Re-engagement' ? 'active' : '' ?>">Re-engagement</a>
             <a href="/settings" class="<?= ($pageTitle ?? '') === 'Settings' ? 'active' : '' ?>">Settings</a>
             <?php if (!empty($authEnabled)): ?><form method="post" action="/logout"><input type="hidden" name="csrf_token" value="<?= e($csrfToken ?? '') ?>"><button class="nav-logout" type="submit">Sign out</button></form><?php endif; ?>
         </nav>
@@ -34,6 +35,6 @@
         <a href="https://developers.kit.com/api-reference/subscribers/list-subscribers" target="_blank" rel="noreferrer">Kit API docs ↗</a>
     </footer>
 </div>
-<script src="/assets/app.js?v=3" defer></script>
+<script src="/assets/app.js?v=4" defer></script>
 </body>
 </html>

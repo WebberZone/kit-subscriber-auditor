@@ -8,6 +8,9 @@ This project uses the current Kit API v4 contract:
 
 - `GET https://api.kit.com/v4/subscribers` with the server-side `X-Kit-Api-Key` header. It uses cursor pagination: request the next page with `after=<end_cursor>`. Kit documents a default page size of 500 and a maximum of 1000; this app requests 1000 for subscriber pages.
 - `GET https://api.kit.com/v4/subscribers/{subscriber_id}/stats` returns `sent`, `opened`, `clicked`, `bounced`, `open_rate`, `click_rate`, `last_sent`, `last_opened`, `last_clicked`, `sends_since_last_open`, and `sends_since_last_click`.
+- `GET https://api.kit.com/v4/tags` lists tags with cursor pagination. `POST https://api.kit.com/v4/tags/{tag_id}/subscribers/{subscriber_id}` adds one subscriber to a tag. Kit also documents `POST /v4/bulk/tags/subscribers`, but that bulk endpoint requires an OAuth bearer token; this API-key app therefore applies tags one subscriber at a time and records each result.
+- `GET https://api.kit.com/v4/tags/{tag_id}/subscribers` lists the current members of a tag with cursor pagination. The re-engagement resync uses active members so people who have already left the list are not proposed for unsubscribe.
+- `GET https://api.kit.com/v4/broadcasts?status=completed&slim=true` lists completed broadcasts. The resync then calls subscriber stats with `email_sent_after=YYYY-MM-DD` and compares `last_clicked` with the selected broadcast's exact `send_at` timestamp.
 - `POST https://api.kit.com/v4/subscribers/{id}/unsubscribe` returns `204 No Content` and moves the subscriber to `cancelled`. Kit retains the subscriber record, history, and tags. Kit does not document a bulk unsubscribe endpoint for API-key authentication, so this app uses individually rate-limited calls.
 - Kit documents a limit of 120 requests per rolling 60 seconds for an API key. The client spaces requests by 550ms and retries safe `GET` failures plus `429` responses with exponential backoff. It does not automatically repeat an unsubscribe after an ambiguous network or `5xx` response; that item is recorded as failed for review. This app requests all subscriber states, so a first sync of 4,702 subscribers requires a theoretical minimum of about 39 minutes and a practical baseline of about 43 minutes before response latency and retries.
 
@@ -61,6 +64,18 @@ Open the resulting `.test` domain and click **Sync changes**. The first sync fet
 
 The worker processes stats sequentially in batches of up to 50 by default. You can raise this to 100 in Settings, which changes local queue/progress grouping but does not bypass Kit's API-key rate limit. The browser polls SQLite for progress while the worker runs, so Herd request timeouts do not interrupt long batches. The run stores a worker PID and heartbeat; a stale heartbeat is shown in the dashboard and starting sync again safely resumes pending queue items. No cleanup occurs during sync.
 
+## Re-engagement workflow
+
+The re-engagement workflow is intentionally user-timed; it does not assume that a broadcast needs exactly seven days.
+
+1. Create or choose a Kit tag in Settings.
+2. From the Removal candidates view, select the subscribers you want to give one more chance and confirm **Tag for re-engagement**. The worker applies the tag and stores the cohort locally. It does not send anything.
+3. Draft and send the re-engagement broadcast from Kit, targeting that tag.
+4. When you decide the broadcast has had enough time, choose the actual completed broadcast in Re-engagement and click **Resync tagged subscribers**. The app fetches the tag's current active members and checks their click activity since that broadcast's send time.
+5. Review the resulting stale list. Subscribers who clicked after the selected broadcast are excluded. The stale list hands off to the existing unsubscribe review, CSV export, dry-run, and explicit `UNSUBSCRIBE` confirmation flow.
+
+The click check is a post-send engagement signal: if a subscriber clicked any email after the selected broadcast's send time, they are treated as engaged. If other emails were sent after the re-engagement broadcast, the result is intentionally conservative and that timing is visible in the audit trail.
+
 ## Cleanup safety
 
 The default removal candidate rule is:
@@ -94,12 +109,14 @@ app/
   CredentialStore.php    encrypted local API-key storage
   Database.php           SQLite connection and migrations
   KitApiClient.php       cURL client, API-key auth, throttling, retries, and API errors
+  ReengagementService.php tag cohort, broadcast resync, click comparison, and stale handoff
   Settings.php           validated local settings
   SyncService.php        paginated subscriber sync, freshness policy, and stats queue
   bootstrap.php          application startup and secure response headers
   views/                 server-rendered HTML templates
 bin/
   sync-worker.php         detached local sync worker with heartbeat
+  reengagement-worker.php detached tag/resync worker
 database/migrations/     versioned SQLite schema
 public/                  web entry point and local assets
 storage/                 SQLite database (ignored by Git)

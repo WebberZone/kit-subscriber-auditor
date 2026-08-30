@@ -87,10 +87,12 @@
     const selections = document.querySelectorAll('[data-selection]');
     const selectedCount = document.querySelector('[data-selected-count]');
     const reviewButton = document.querySelector('[data-review-button]');
+    const reengagementReviewButton = document.querySelector('[data-reengagement-review-button]');
     function updateSelection() {
         const selected = Array.from(selections).filter(input => input.checked).length;
         if (selectedCount) selectedCount.textContent = String(selected);
         if (reviewButton) reviewButton.disabled = selected === 0;
+        if (reengagementReviewButton) reengagementReviewButton.disabled = selected === 0;
     }
     selections.forEach(input => input.addEventListener('change', updateSelection));
     updateSelection();
@@ -138,4 +140,65 @@
         }
     }
     if (cleanupPanel && ['pending', 'running', 'dry_run_pending'].includes(cleanupPanel.dataset.status)) runCleanup();
+
+    function updateReengagement(progress) {
+        const panel = document.querySelector('[data-reengagement-panel]');
+        if (!panel) return;
+        panel.dataset.status = progress.status || 'idle';
+        const bar = panel.querySelector('[data-reengagement-progress]');
+        if (bar) bar.value = progress.percent || 0;
+        const message = panel.querySelector('[data-reengagement-message]');
+        if (message) message.textContent = progress.message || '';
+        const status = panel.querySelector('[data-reengagement-status]');
+        if (status) { status.textContent = (progress.status || 'idle').replaceAll('_', ' '); status.className = 'status-pill status-' + (progress.status || 'idle'); }
+        const count = panel.querySelector('[data-reengagement-count]');
+        if (count) count.textContent = String(progress.processed || 0) + ' / ' + String(progress.total || 0) + ' processed';
+        const phase = panel.querySelector('[data-reengagement-phase]');
+        if (phase) phase.textContent = (progress.phase || 'idle').replaceAll('_', ' ');
+    }
+
+    async function runReengagement() {
+        const panel = document.querySelector('[data-reengagement-panel]');
+        if (!panel) return;
+        try {
+            let progress = await getJson('/reengagement/status');
+            updateReengagement(progress);
+            while (['tagging', 'resyncing'].includes(progress.status)) {
+                await new Promise(resolve => setTimeout(resolve, 1500));
+                progress = await getJson('/reengagement/status');
+                updateReengagement(progress);
+            }
+            window.setTimeout(() => window.location.reload(), 500);
+        } catch (error) {
+            const message = panel.querySelector('[data-reengagement-message]');
+            if (message) message.textContent = error.message;
+        }
+    }
+
+    async function submitReengagementForm(form, endpoint, redirectPath) {
+        const button = form.querySelector('button[type="submit"]');
+        if (button) { button.disabled = true; button.textContent = 'Starting…'; }
+        try {
+            const response = await fetch(endpoint, { method: 'POST', body: new FormData(form), headers: { 'Accept': 'application/json' }, credentials: 'same-origin' });
+            const payload = await response.json().catch(() => ({ error: 'The server returned an invalid response.' }));
+            if (!response.ok) throw new Error(payload.error || 'Unable to start re-engagement.');
+            window.location.href = redirectPath;
+        } catch (error) {
+            window.alert(error.message);
+            if (button) { button.disabled = false; button.textContent = endpoint === '/reengagement/start' ? 'Apply tag and track cohort' : 'Resync tagged subscribers'; }
+        }
+    }
+
+    const reengagementStartForm = document.querySelector('[data-reengagement-start]');
+    if (reengagementStartForm) reengagementStartForm.addEventListener('submit', event => {
+        event.preventDefault();
+        submitReengagementForm(reengagementStartForm, '/reengagement/start', '/reengagement');
+    });
+    const reengagementResyncForm = document.querySelector('[data-reengagement-resync]');
+    if (reengagementResyncForm) reengagementResyncForm.addEventListener('submit', event => {
+        event.preventDefault();
+        submitReengagementForm(reengagementResyncForm, '/reengagement/resync', '/reengagement');
+    });
+    const reengagementPanel = document.querySelector('[data-reengagement-panel]');
+    if (reengagementPanel && ['tagging', 'resyncing'].includes(reengagementPanel.dataset.status)) runReengagement();
 }());
