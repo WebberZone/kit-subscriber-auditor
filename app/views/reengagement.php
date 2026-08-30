@@ -15,7 +15,7 @@ ob_start();
     <?php if (!$apiConfigured): ?>
         <div class="notice notice-warn"><strong>Kit connection not configured.</strong> Connect Kit via OAuth or add an API key from Settings before using this workflow.</div>
     <?php elseif ((int) ($settings['reengagement_tag_id'] ?? 0) < 1): ?>
-        <div class="notice notice-warn"><strong>No re-engagement tag selected.</strong> Choose an existing Kit tag in Settings first.</div>
+        <div class="notice notice-warn"><strong>No default re-engagement tag selected.</strong> You can choose or create the tag on the cohort review screen; Settings is only needed when choosing a default for resync.</div>
     <?php endif; ?>
 
     <section class="progress-card" data-reengagement-panel data-status="<?= e($progressStatus) ?>">
@@ -29,7 +29,7 @@ ob_start();
         <article class="settings-card workflow-card">
             <span class="section-kicker">Step 1</span>
             <h2>Tag cold subscribers</h2>
-            <p>From the Audit page, open the <strong>Removal candidates</strong> view, select subscribers, and choose <strong>Tag for re-engagement</strong>.</p>
+            <p>From the Audit page, open any filtered cohort, select subscribers, and choose <strong>Tag for re-engagement</strong>. The review screen lets you choose or create the Kit tag.</p>
             <a class="button button-secondary" href="<?= e('/?group=removal') ?>">Open removal candidates</a>
         </article>
         <article class="settings-card workflow-card">

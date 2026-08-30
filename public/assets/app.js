@@ -261,6 +261,25 @@
         event.preventDefault();
         submitReengagementForm(reengagementStartForm, '/reengagement/start', '/reengagement');
     });
+    const reengagementTagCreateForm = document.querySelector('[data-reengagement-tag-create]');
+    if (reengagementTagCreateForm) reengagementTagCreateForm.addEventListener('submit', async event => {
+        event.preventDefault();
+        const button = reengagementTagCreateForm.querySelector('button[type="submit"]');
+        if (button) { button.disabled = true; button.textContent = 'Creating…'; }
+        try {
+            const response = await fetch('/reengagement/tag/create', { method: 'POST', body: new FormData(reengagementTagCreateForm), headers: { 'Accept': 'application/json' }, credentials: 'same-origin' });
+            if (response.redirected) {
+                window.location.href = response.url;
+                return;
+            }
+            const payload = await response.json().catch(() => ({ error: 'The server returned an invalid response.' }));
+            if (!response.ok) throw new Error(payload.error || 'Unable to create the Kit tag.');
+            window.location.reload();
+        } catch (error) {
+            window.alert(error.message);
+            if (button) { button.disabled = false; button.textContent = 'Create tag'; }
+        }
+    });
     const reengagementResyncForm = document.querySelector('[data-reengagement-resync]');
     if (reengagementResyncForm) reengagementResyncForm.addEventListener('submit', event => {
         event.preventDefault();

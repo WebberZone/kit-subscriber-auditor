@@ -81,6 +81,29 @@ $writeSubscriberCsv = static function (array $rows): void {
     fclose($output);
     exit;
 };
+$renderReengagementReview = static function (array $candidates, string $selectionGroup) use ($kit, $reengagement, $settings, $template, $auth): void {
+    $availableTags = [];
+    $tagError = null;
+    if ($kit->hasCredentials()) {
+        try {
+            $availableTags = $reengagement->availableTags();
+        } catch (KitApiException $exception) {
+            $tagError = $exception->getMessage();
+        }
+    }
+    $template->render('reengagement-review', [
+        'pageTitle' => 'Review re-engagement tag',
+        'candidates' => $candidates,
+        'selectionGroup' => $selectionGroup,
+        'settings' => $settings,
+        'availableTags' => $availableTags,
+        'tagError' => $tagError,
+        'csrfToken' => csrf_token(),
+        'flashMessages' => consume_flash(),
+        'apiConfigured' => $kit->hasCredentials(),
+        'authEnabled' => $auth->enabled(),
+    ]);
+};
 
 try {
     if ($path === '/login' && $method === 'GET') {
@@ -254,20 +277,42 @@ try {
         exit;
     }
 
+    if ($path === '/reengagement/review' && $method === 'GET') {
+        $ids = is_array($_SESSION['reengagement_selection'] ?? null) ? $_SESSION['reengagement_selection'] : [];
+        $selectionGroup = $audit->validateGroup((string) ($_SESSION['reengagement_selection_group'] ?? 'removal'));
+        $candidates = $audit->selectedSubscribersByIds($ids, $selectionGroup, $settings);
+        $renderReengagementReview($candidates, $selectionGroup);
+        exit;
+    }
+
     if ($path === '/reengagement/review' && $method === 'POST') {
         verify_csrf();
         [$selectionGroup, $candidates] = $resolveSelection($_POST);
         $_SESSION['reengagement_selection'] = array_map(static fn (array $row): int => (int) $row['id'], $candidates);
         $_SESSION['reengagement_selection_group'] = $selectionGroup;
-        $template->render('reengagement-review', [
-            'pageTitle' => 'Review re-engagement tag',
-            'candidates' => $candidates,
-            'settings' => $settings,
-            'csrfToken' => csrf_token(),
-            'flashMessages' => consume_flash(),
-            'apiConfigured' => $kit->hasCredentials(),
-            'authEnabled' => $auth->enabled(),
-        ]);
+        $renderReengagementReview($candidates, $selectionGroup);
+        exit;
+    }
+
+    if ($path === '/reengagement/tag/create' && $method === 'POST') {
+        verify_csrf();
+        if (!$kit->hasCredentials()) {
+            throw new HttpException('Connect Kit via OAuth or configure an API key in Settings before creating a tag.', 422);
+        }
+        $tagName = trim((string) ($_POST['tag_name'] ?? ''));
+        if ($tagName === '' || strlen($tagName) > 100 || preg_match('/[\x00-\x1F\x7F]/', $tagName) === 1) {
+            throw new HttpException('Enter a tag name up to 100 characters without control characters.', 422);
+        }
+        $response = $kit->createTag($tagName);
+        $tag = is_array($response['tag'] ?? null) ? $response['tag'] : [];
+        $tagId = (int) ($tag['id'] ?? 0);
+        $resolvedTagName = trim((string) ($tag['name'] ?? $tagName));
+        if ($tagId < 1 || $resolvedTagName === '') {
+            throw new KitApiException('Kit did not return the created tag.', 502);
+        }
+        $settingsStore->save(array_merge($settings, ['reengagement_tag_id' => $tagId]));
+        flash('success', 'Kit tag “' . $resolvedTagName . '” is ready and selected for this cohort.');
+        redirect('/reengagement/review');
         exit;
     }
 
@@ -284,7 +329,14 @@ try {
         }
         $ids = is_array($_SESSION['reengagement_selection'] ?? null) ? $_SESSION['reengagement_selection'] : [];
         $selectionGroup = $audit->validateGroup((string) ($_SESSION['reengagement_selection_group'] ?? 'removal'));
-        $progress = $reengagement->startTagging($ids, $settings, $selectionGroup);
+        $tagId = (int) ($_POST['tag_id'] ?? 0);
+        if ($tagId < 1) {
+            $tagId = (int) ($settings['reengagement_tag_id'] ?? 0);
+        }
+        $jobSettings = $settings;
+        $jobSettings['reengagement_tag_id'] = $tagId;
+        $progress = $reengagement->startTagging($ids, $jobSettings, $selectionGroup);
+        $settingsStore->save($jobSettings);
         unset($_SESSION['reengagement_selection']);
         unset($_SESSION['reengagement_selection_group']);
         $reengagement->launchWorker($settings['batch_size'], $projectRoot . '/bin/reengagement-worker.php', $projectRoot . '/storage/reengagement-worker.log');

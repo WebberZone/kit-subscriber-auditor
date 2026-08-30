@@ -89,7 +89,7 @@ final class ReengagementService
         $this->ensureCanStart();
         $tagId = (int) ($settings['reengagement_tag_id'] ?? 0);
         if ($tagId < 1) {
-            throw new HttpException('Choose a Kit tag in Settings before tagging subscribers.', 422);
+            throw new HttpException('Choose a Kit tag on the review screen before tagging subscribers.', 422);
         }
 
         $candidates = $this->audit->selectedSubscribersByIds($ids, $group, $settings);

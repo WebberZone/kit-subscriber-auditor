@@ -81,6 +81,19 @@ final class KitApiClient
     /**
      * @return array<string, mixed>
      */
+    public function createTag(string $name): array
+    {
+        $name = trim($name);
+        if ($name === '') {
+            throw new KitApiException('Kit tag names cannot be empty.', 422);
+        }
+
+        return $this->request('POST', '/tags', [], ['name' => $name]);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
     public function listTags(?string $after = null): array
     {
         $query = [

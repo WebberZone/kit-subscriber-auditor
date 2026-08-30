@@ -139,6 +139,14 @@ input[type="checkbox"] { accent-color: var(--mint-deep); width: 16px; height: 16
 .settings-form, .confirm-form { display: grid; gap: 20px; padding-top: 24px; }
 .settings-form label:not(.check-label), .confirm-form label:not(.check-label) { display: grid; gap: 6px; font-weight: 750; font-size: .86rem; }
 .settings-form label small, .confirm-form label small { font-weight: 450; font-size: .75rem; }
+.tag-choice { display: flex; align-items: end; justify-content: space-between; gap: 20px; margin: 22px 0 20px; padding: 16px; background: #f4f8f4; border: 1px solid #dce9de; border-radius: 10px; }
+.tag-choice-copy { display: grid; gap: 5px; }
+.tag-choice-copy .section-kicker { margin-bottom: 0; }
+.tag-choice-copy strong { font-size: .9rem; }
+.tag-choice-copy small { max-width: 430px; font-size: .75rem; line-height: 1.45; }
+.tag-create-form { display: flex; align-items: end; gap: 8px; flex: 0 0 290px; }
+.tag-create-form label { flex: 1; }
+.tag-create-form input { min-width: 0; }
 .input-with-suffix { display: flex; align-items: center; gap: 8px; }
 .input-with-suffix input { max-width: 160px; }
 .input-with-suffix span { color: var(--muted); font-size: .8rem; }
@@ -187,6 +195,8 @@ input[type="checkbox"] { accent-color: var(--mint-deep); width: 16px; height: 16
     .selection-toolbar { align-items: flex-start; flex-direction: column; }
     .selection-actions { justify-content: flex-start; }
     .sync-worker-row { align-items: flex-start; flex-direction: column; gap: 5px; }
+    .tag-choice { align-items: stretch; flex-direction: column; }
+    .tag-create-form { flex-basis: auto; }
     .filters { grid-template-columns: 1fr; }
     .search-field { grid-column: auto; }
     .filters .button { width: 100%; }
