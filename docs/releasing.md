@@ -25,4 +25,4 @@ git push origin main --follow-tags
 gh release create v1.0.0 --generate-notes
 ```
 
-This repository publishes its documentation with GitHub Pages at `https://ajay.social/kit-subscriber-auditor/` once Pages is enabled using GitHub Actions.
+This repository publishes its documentation with GitHub Pages at `https://webberzone.github.io/kit-subscriber-auditor/` using GitHub Actions.

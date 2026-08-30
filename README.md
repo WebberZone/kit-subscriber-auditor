@@ -110,7 +110,7 @@ The resulting `build/kit-subscriber-auditor-v1.0.0.zip` contains the application
 
 ## Documentation site
 
-The public documentation is built from this repository with GitHub Pages at `https://ajay.social/kit-subscriber-auditor/`. Its Jekyll source is in `index.md`, `docs/`, `_layouts/`, `_includes/`, and `site-assets/`.
+The public documentation is built from this repository with GitHub Pages at `https://webberzone.github.io/kit-subscriber-auditor/`. Its Jekyll source is in `index.md`, `docs/`, `_layouts/`, `_includes/`, and `site-assets/`.
 
 ## License
 
