@@ -6,6 +6,6 @@
         <div class="progress-track"><progress data-cleanup-progress max="100" value="<?= (int) ($cleanupProgress['percent'] ?? 0) ?>" aria-label="Cleanup progress"></progress></div>
         <div class="progress-meta"><span data-cleanup-count><?= (int) ($cleanupProgress['processed'] ?? 0) ?> / <?= (int) ($cleanupProgress['total'] ?? 0) ?> processed</span><span data-cleanup-failed><?= (int) ($cleanupProgress['failed'] ?? 0) ?> failed</span></div>
     </section>
-    <section class="info-card"><p><strong>Important:</strong> a successful call moves the subscriber to Kit's <code>cancelled</code> state. The local job log remains available in SQLite for audit purposes. Re-subscribing should only happen with the person's explicit permission.</p><a class="button button-secondary" href="/">Return to audit</a></section>
+    <section class="info-card"><p><strong>Processing:</strong> each progress step handles up to <?= (int) $settings['batch_size'] ?> subscribers, but Kit receives one unsubscribe request per subscriber because it does not provide a bulk unsubscribe endpoint. The job is rate-limited and records each result locally.</p><p><strong>Important:</strong> a successful call moves the subscriber to Kit's <code>cancelled</code> state. Re-subscribing should only happen with the person's explicit permission.</p><a class="button button-secondary" href="/">Return to audit</a></section>
 </main>
 <?php $content = ob_get_clean(); require __DIR__ . '/layout.php'; ?>

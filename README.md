@@ -101,6 +101,8 @@ Before a real unsubscribe job can start, the app:
 
 Dry-run mode is enabled by default. Kit documents unsubscribe as effectively permanent because it revokes consent; this app does not offer an automatic re-subscribe action.
 
+The unsubscribe review screen shows the current dry-run state as a checked checkbox. Keep it checked to simulate the job; uncheck it to allow real Kit calls for that job. This per-job choice does not change the saved default in Settings.
+
 ## Structure
 
 ```text

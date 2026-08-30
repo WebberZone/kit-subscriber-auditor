@@ -361,7 +361,9 @@ try {
         }
         $ids = is_array($_SESSION['cleanup_selection'] ?? null) ? $_SESSION['cleanup_selection'] : [];
         $selectionGroup = $audit->validateGroup((string) ($_SESSION['cleanup_selection_group'] ?? 'removal'));
-        $progress = $cleanup->start($ids, $settings, $selectionGroup);
+        $jobSettings = $settings;
+        $jobSettings['dry_run'] = (int) ($_POST['cleanup_dry_run'] ?? $settings['dry_run']) === 1 ? 1 : 0;
+        $progress = $cleanup->start($ids, $jobSettings, $selectionGroup);
         unset($_SESSION['cleanup_selection']);
         unset($_SESSION['cleanup_selection_group']);
         json_response($progress);
@@ -398,6 +400,7 @@ try {
         $template->render('cleanup-progress', [
             'pageTitle' => 'Cleanup progress',
             'cleanupProgress' => $cleanup->latestProgress(),
+            'settings' => $settings,
             'csrfToken' => csrf_token(),
             'flashMessages' => consume_flash(),
             'authEnabled' => $auth->enabled(),

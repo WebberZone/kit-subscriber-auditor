@@ -145,6 +145,27 @@
 
     const cleanupForm = document.querySelector('[data-cleanup-start]');
     if (cleanupForm) {
+        const cleanupDryRunToggle = cleanupForm.querySelector('[data-cleanup-dry-run]');
+        const cleanupModeLabel = cleanupForm.querySelector('[data-cleanup-mode-label]');
+        const cleanupModeHelp = cleanupForm.querySelector('[data-cleanup-mode-help]');
+        const cleanupModeNotice = cleanupForm.querySelector('[data-cleanup-mode-notice]');
+        const cleanupSubmitButton = cleanupForm.querySelector('[data-cleanup-submit-button]');
+        function updateCleanupMode() {
+            const dryRun = cleanupDryRunToggle?.checked ?? true;
+            if (cleanupModeLabel) cleanupModeLabel.textContent = dryRun ? 'Dry-run mode is enabled' : 'Live unsubscribe mode is enabled';
+            if (cleanupModeHelp) cleanupModeHelp.textContent = dryRun
+                ? 'Keep checked to simulate this job locally. Uncheck to allow real Kit unsubscribe calls for this job.'
+                : 'This job will make real Kit unsubscribe calls. Check to simulate it locally instead.';
+            if (cleanupModeNotice) {
+                cleanupModeNotice.className = `notice ${dryRun ? 'notice-info' : 'notice-danger'}`;
+                cleanupModeNotice.textContent = dryRun
+                    ? 'Dry-run mode is enabled. Starting this will simulate the action locally and will not call Kit.'
+                    : 'Live mode is selected. Starting this will make real Kit unsubscribe calls.';
+            }
+            if (cleanupSubmitButton) cleanupSubmitButton.textContent = dryRun ? 'Run dry-run review' : 'Start unsubscribe job';
+        }
+        if (cleanupDryRunToggle) cleanupDryRunToggle.addEventListener('change', updateCleanupMode);
+        updateCleanupMode();
         cleanupForm.addEventListener('submit', async function (event) {
             event.preventDefault();
             const button = cleanupForm.querySelector('button[type="submit"]');
