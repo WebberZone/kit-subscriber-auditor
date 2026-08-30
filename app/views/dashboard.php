@@ -10,6 +10,7 @@ $workerLabel = $workerStatus === 'active' ? 'Worker active' : ($workerStatus ===
 if ($workerStatus === 'active' && $workerPid !== null) {
     $workerLabel .= ' · PID ' . (int) $workerPid;
 }
+$selectedGroup = $filters['group'];
 ob_start();
 ?>
 <main class="main">
@@ -49,37 +50,37 @@ ob_start();
     </section>
 
     <section class="metric-grid" aria-label="Subscriber metrics">
-        <a class="metric-card metric-card-featured" href="<?= e(query_url('/', ['group' => 'all'])) ?>">
+        <a class="metric-card metric-card-featured <?= $selectedGroup === 'all' ? 'metric-card-selected' : '' ?>" href="<?= e(query_url('/', ['group' => 'all'])) ?>" <?= $selectedGroup === 'all' ? 'aria-current="page"' : '' ?>>
             <span class="metric-label">Active subscribers</span>
             <strong><?= number_format((int) $metrics['total_active']) ?></strong>
             <span class="metric-detail">Current local snapshot</span>
         </a>
-        <a class="metric-card metric-card-alert" href="<?= e(query_url('/', ['group' => 'removal'])) ?>">
+        <a class="metric-card metric-card-alert <?= $selectedGroup === 'removal' ? 'metric-card-selected' : '' ?>" href="<?= e(query_url('/', ['group' => 'removal'])) ?>" <?= $selectedGroup === 'removal' ? 'aria-current="page"' : '' ?>>
             <span class="metric-label">Removal candidates</span>
             <strong><?= number_format((int) $metrics['removal_candidates']) ?></strong>
             <span class="metric-detail">Review before action</span>
         </a>
-        <a class="metric-card" href="<?= e(query_url('/', ['group' => 'very-cold'])) ?>">
+        <a class="metric-card <?= $selectedGroup === 'very-cold' ? 'metric-card-selected' : '' ?>" href="<?= e(query_url('/', ['group' => 'very-cold'])) ?>" <?= $selectedGroup === 'very-cold' ? 'aria-current="page"' : '' ?>>
             <span class="metric-label">Very cold</span>
             <strong><?= number_format((int) $metrics['very_cold']) ?></strong>
             <span class="metric-detail">365d cold · 10+ sent</span>
         </a>
-        <a class="metric-card" href="<?= e(query_url('/', ['group' => 'never-opened'])) ?>">
+        <a class="metric-card <?= $selectedGroup === 'never-opened' ? 'metric-card-selected' : '' ?>" href="<?= e(query_url('/', ['group' => 'never-opened'])) ?>" <?= $selectedGroup === 'never-opened' ? 'aria-current="page"' : '' ?>>
             <span class="metric-label">Never opened</span>
             <strong><?= number_format((int) $metrics['never_opened']) ?></strong>
             <span class="metric-detail">No recorded open</span>
         </a>
-        <a class="metric-card" href="<?= e(query_url('/', ['group' => 'never-clicked'])) ?>">
+        <a class="metric-card <?= $selectedGroup === 'never-clicked' ? 'metric-card-selected' : '' ?>" href="<?= e(query_url('/', ['group' => 'never-clicked'])) ?>" <?= $selectedGroup === 'never-clicked' ? 'aria-current="page"' : '' ?>>
             <span class="metric-label">Never clicked</span>
             <strong><?= number_format((int) $metrics['never_clicked']) ?></strong>
             <span class="metric-detail">No recorded click</span>
         </a>
-        <a class="metric-card" href="<?= e(query_url('/', ['group' => 'recent'])) ?>">
+        <a class="metric-card <?= $selectedGroup === 'recent' ? 'metric-card-selected' : '' ?>" href="<?= e(query_url('/', ['group' => 'recent'])) ?>" <?= $selectedGroup === 'recent' ? 'aria-current="page"' : '' ?>>
             <span class="metric-label">Recently subscribed</span>
             <strong><?= number_format((int) $metrics['recently_subscribed']) ?></strong>
             <span class="metric-detail">Last 30 days</span>
         </a>
-        <a class="metric-card" href="<?= e(query_url('/', ['group' => 'sends-since-open'])) ?>">
+        <a class="metric-card <?= $selectedGroup === 'sends-since-open' ? 'metric-card-selected' : '' ?>" href="<?= e(query_url('/', ['group' => 'sends-since-open'])) ?>" <?= $selectedGroup === 'sends-since-open' ? 'aria-current="page"' : '' ?>>
             <span class="metric-label">Sends since last open</span>
             <strong><?= number_format((int) $metrics['sends_since_last_open']) ?></strong>
             <span class="metric-detail">At least one send</span>
