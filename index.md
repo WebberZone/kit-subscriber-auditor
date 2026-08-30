@@ -10,7 +10,7 @@ permalink: /
   <p class="lead">Kit Subscriber Audit gives you a private, review-first dashboard for finding inactive subscribers, running a re-engagement campaign, and cleaning your list deliberately.</p>
   <div class="button-row">
     <a class="button" href="{{ '/docs/getting-started/' | relative_url }}">Get started</a>
-    <a class="button secondary" href="https://github.com/ajaydsouza/kit-subscriber-auditor/releases/latest" target="_blank" rel="noreferrer">Latest release ↗</a>
+    <a class="button secondary" href="https://github.com/WebberZone/kit-subscriber-auditor/releases/latest" target="_blank" rel="noreferrer">Latest release ↗</a>
   </div>
 </div>
 

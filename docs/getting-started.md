@@ -18,7 +18,7 @@ The application has no runtime Composer dependencies. Composer is used for the t
 Clone the repository, create the ignored environment file, and set a long random password:
 
 ```sh
-git clone https://github.com/ajaydsouza/kit-subscriber-auditor.git
+git clone https://github.com/WebberZone/kit-subscriber-auditor.git
 cd kit-subscriber-auditor
 cp .env.example .env
 chmod 600 .env

@@ -25,4 +25,4 @@ git push origin main --follow-tags
 gh release create v1.0.0 --generate-notes
 ```
 
-The companion public `kit-subscriber-auditor-gh-pages` repository publishes the mirrored documentation at `https://ajay.social/kit-subscriber-auditor-gh-pages/`. The private application repository keeps the canonical source alongside the code; update the public docs repository when documentation changes.
+This repository publishes its documentation with GitHub Pages at `https://ajay.social/kit-subscriber-auditor/` once Pages is enabled using GitHub Actions.
