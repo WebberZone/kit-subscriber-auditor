@@ -44,7 +44,7 @@ permalink: /
 <section class="section-band section-band-light" id="start-here">
   <div class="container split">
     <div><p class="eyebrow"><span aria-hidden="true"></span>Start here</p><h2 class="section-title">A private dashboard you control.</h2><p class="section-desc">It runs as a small PHP application with no framework and no frontend build step. Run it locally, on a private server, or anywhere else you control. Herd users can link the <code>public/</code> directory directly.</p></div>
-    <div class="quick-links"><a href="{{ '/docs/getting-started/' | relative_url }}"><strong>Installation <span aria-hidden="true">→</span></strong><span>Requirements, Herd, API key, and first sync</span></a><a href="{{ '/docs/security/' | relative_url }}"><strong>Security model <span aria-hidden="true">→</span></strong><span>What is protected and what remains your responsibility</span></a><a href="{{ '/docs/releasing/' | relative_url }}"><strong>Releasing <span aria-hidden="true">→</span></strong><span>Build a clean versioned ZIP and publish it on GitHub</span></a></div>
+    <div class="quick-links"><a href="{{ '/docs/getting-started/' | relative_url }}"><strong>Installation <span aria-hidden="true">→</span></strong><span>Requirements, Herd, API key, and first sync</span></a><a href="{{ '/docs/security/' | relative_url }}"><strong>Security model <span aria-hidden="true">→</span></strong><span>What is protected and what remains your responsibility</span></a></div>
   </div>
 </section>
 
