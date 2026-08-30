@@ -64,7 +64,7 @@ final class AuditService
     {
         $where = ['state = :active_state'];
         $parameters = ['active_state' => 'active'];
-        $group = (string) ($filters['group'] ?? 'all');
+        $group = $this->validateGroup((string) ($filters['group'] ?? 'all'));
 
         if ($group === 'removal') {
             $where[] = $this->removalWhere($settings);
@@ -126,20 +126,60 @@ final class AuditService
         return ['rows' => $rows, 'total' => $total, 'page' => $page, 'pages' => $pages];
     }
 
+    public function validateGroup(string $group): string
+    {
+        $groups = ['all', 'removal', 'very-cold', 'never-opened', 'never-clicked', 'recent', 'sends-since-open'];
+        if (!in_array($group, $groups, true)) {
+            throw new HttpException('Invalid subscriber filter.', 422);
+        }
+
+        return $group;
+    }
+
     /** @return list<array<string, mixed>> */
-    public function removalCandidatesByIds(array $ids, array $settings): array
+    public function selectedSubscribersByIds(array $ids, string $group, array $settings): array
     {
         $ids = array_values(array_unique(array_filter(array_map('intval', $ids), static fn (int $id): bool => $id > 0)));
         if ($ids === []) {
             return [];
         }
 
+        $group = $this->validateGroup($group);
         $placeholders = implode(',', array_fill(0, count($ids), '?'));
+        [$groupWhere, $groupParameters] = match ($group) {
+            'removal' => [$this->removalWherePositional(), $this->removalParamsPositional($settings)],
+            'very-cold' => [$this->veryColdWherePositional(), $this->veryColdParamsPositional()],
+            'never-opened' => ['last_opened IS NULL', []],
+            'never-clicked' => ['last_clicked IS NULL', []],
+            'recent' => ['created_at >= ?', [$this->recentCutoff()]],
+            'sends-since-open' => ['COALESCE(sends_since_last_open, 0) > 0', []],
+            default => ['1 = 1', []],
+        };
+
         return $this->database->fetchAll(
-            'SELECT * FROM subscribers WHERE state = ? AND id IN (' . $placeholders . ') AND '
-            . $this->removalWherePositional() . ' ORDER BY created_at ASC, id ASC',
-            array_merge(['active'], $ids, $this->removalParamsPositional($settings))
+            'SELECT * FROM subscribers WHERE state = ? AND id IN (' . $placeholders . ') AND ' . $groupWhere
+            . ' ORDER BY created_at ASC, id ASC',
+            array_merge(['active'], $ids, $groupParameters)
         );
+    }
+
+    public function selectionReason(string $group, array $settings): string
+    {
+        return match ($this->validateGroup($group)) {
+            'removal' => $this->removalReason($settings),
+            'very-cold' => 'No open or click in 365 days; at least 10 emails sent.',
+            'never-opened' => 'No recorded open in the local snapshot.',
+            'never-clicked' => 'No recorded click in the local snapshot.',
+            'recent' => 'Manually selected from the recently subscribed view.',
+            'sends-since-open' => 'At least one send since the last recorded open.',
+            default => 'Manually selected from the active subscriber view.',
+        };
+    }
+
+    /** @return list<array<string, mixed>> */
+    public function removalCandidatesByIds(array $ids, array $settings): array
+    {
+        return $this->selectedSubscribersByIds($ids, 'removal', $settings);
     }
 
     public function removalReason(array $settings): string
@@ -223,6 +263,27 @@ final class AuditService
         return '(last_opened IS NULL OR last_opened < :very_cold_open)'
             . ' AND (last_clicked IS NULL OR last_clicked < :very_cold_click)'
             . ' AND sent >= :very_cold_min_sent';
+    }
+
+    private function veryColdWherePositional(): string
+    {
+        return '(last_opened IS NULL OR last_opened < ?)'
+            . ' AND (last_clicked IS NULL OR last_clicked < ?)'
+            . ' AND sent >= ?';
+    }
+
+    /** @return list<string|int> */
+    private function veryColdParamsPositional(): array
+    {
+        $params = $this->veryColdParams();
+        return [$params['very_cold_open'], $params['very_cold_click'], $params['very_cold_min_sent']];
+    }
+
+    private function recentCutoff(): string
+    {
+        return (new DateTimeImmutable('now', new DateTimeZone('UTC')))
+            ->modify('-' . self::RECENTLY_SUBSCRIBED_DAYS . ' days')
+            ->format('c');
     }
 
     private function count(string $where, array $parameters): int

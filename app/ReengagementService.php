@@ -84,7 +84,7 @@ final class ReengagementService
     }
 
     /** @return array<string, mixed> */
-    public function startTagging(array $ids, array $settings): array
+    public function startTagging(array $ids, array $settings, string $group = 'removal'): array
     {
         $this->ensureCanStart();
         $tagId = (int) ($settings['reengagement_tag_id'] ?? 0);
@@ -92,9 +92,9 @@ final class ReengagementService
             throw new HttpException('Choose a Kit tag in Settings before tagging subscribers.', 422);
         }
 
-        $candidates = $this->audit->removalCandidatesByIds($ids, $settings);
+        $candidates = $this->audit->selectedSubscribersByIds($ids, $group, $settings);
         if ($candidates === []) {
-            throw new HttpException('No selected subscribers still match the current removal rule.', 422);
+            throw new HttpException('No selected subscribers still match the current filter.', 422);
         }
 
         $tagName = $this->tagName($tagId);

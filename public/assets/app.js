@@ -88,13 +88,59 @@
     const selectedCount = document.querySelector('[data-selected-count]');
     const reviewButton = document.querySelector('[data-review-button]');
     const reengagementReviewButton = document.querySelector('[data-reengagement-review-button]');
+    const selectionMode = document.querySelector('[data-selection-mode]');
+    const selectPage = document.querySelector('[data-select-page]');
+    const selectAllMatchingButton = document.querySelector('[data-select-all-matching]');
+    const clearSelectionButton = document.querySelector('[data-clear-selection]');
+    const selectionNotice = document.querySelector('[data-selection-notice]');
+    const selectionNoticeText = document.querySelector('[data-selection-notice-text]');
+    const selectionTotal = Number(selectAllMatchingButton?.dataset.total || 0);
+    const pageTotal = selections.length;
+    function setSelectionMode(mode) {
+        if (!selectionMode) return;
+        selectionMode.value = mode;
+        selectionMode.setAttribute('value', mode);
+    }
+    if (selectionMode && !selectionMode.value) setSelectionMode('visible');
     function updateSelection() {
-        const selected = Array.from(selections).filter(input => input.checked).length;
+        const allSelected = selectionMode?.value === 'all';
+        const checkedCount = Array.from(selections).filter(input => input.checked).length;
+        const selected = allSelected ? selectionTotal : checkedCount;
+        const pageSelected = pageTotal > 0 && checkedCount === pageTotal;
         if (selectedCount) selectedCount.textContent = String(selected);
         if (reviewButton) reviewButton.disabled = selected === 0;
         if (reengagementReviewButton) reengagementReviewButton.disabled = selected === 0;
+        if (selectPage) {
+            selectPage.checked = allSelected || pageSelected;
+            selectPage.indeterminate = !allSelected && checkedCount > 0 && !pageSelected;
+        }
+        if (clearSelectionButton) clearSelectionButton.hidden = selected === 0;
+        if (selectionNotice) selectionNotice.hidden = allSelected || !pageSelected || selectionTotal <= pageTotal;
+        if (selectionNoticeText && pageSelected && !allSelected) selectionNoticeText.textContent = `All ${pageTotal.toLocaleString()} subscribers on this page are selected.`;
     }
-    selections.forEach(input => input.addEventListener('change', updateSelection));
+    selections.forEach(input => input.addEventListener('change', () => {
+        setSelectionMode('visible');
+        updateSelection();
+    }));
+    if (selectPage) selectPage.addEventListener('change', () => {
+        setSelectionMode('visible');
+        selections.forEach(input => { input.checked = selectPage.checked; });
+        updateSelection();
+    });
+    if (selectAllMatchingButton) selectAllMatchingButton.addEventListener('click', () => {
+        setSelectionMode('all');
+        selections.forEach(input => { input.checked = true; });
+        updateSelection();
+    });
+    if (clearSelectionButton) clearSelectionButton.addEventListener('click', () => {
+        setSelectionMode('visible');
+        selections.forEach(input => { input.checked = false; });
+        updateSelection();
+    });
+    const selectionForm = document.querySelector('[data-selection-form]');
+    if (selectionForm) selectionForm.addEventListener('submit', () => {
+        setSelectionMode(selectionMode?.value === 'all' ? 'all' : 'visible');
+    });
     updateSelection();
 
     const cleanupForm = document.querySelector('[data-cleanup-start]');

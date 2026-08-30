@@ -120,6 +120,11 @@ input[type="checkbox"] { accent-color: var(--mint-deep); width: 16px; height: 16
 .rate-chip { display: inline-block; background: #f0f4f1; color: #496252; padding: 4px 6px; border-radius: 5px; font-size: .69rem; margin-right: 3px; }
 .empty, .empty-card { text-align: center; color: var(--muted); padding: 40px 16px; }
 .selection-toolbar { border-top: 1px solid var(--line); padding: 12px 0; color: var(--muted); font-size: .8rem; }
+.selection-summary { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.button-compact { padding: 7px 10px; font-size: .74rem; }
+.selection-notice { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 10px 12px; color: #24563a; background: #eaf7ed; border: 1px solid #bedfc7; border-radius: 8px; margin-bottom: 12px; font-size: .78rem; }
+.selection-notice[hidden], .selection-toolbar [hidden] { display: none; }
+.selection-link { border: 0; padding: 0; color: #1f603f; background: transparent; font-weight: 800; text-decoration: underline; text-underline-offset: 2px; }
 .selection-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
 .selection-toolbar strong { color: var(--ink); }
 .pagination { padding-top: 18px; font-size: .79rem; color: var(--muted); }

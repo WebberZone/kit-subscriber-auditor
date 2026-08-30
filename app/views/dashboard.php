@@ -126,13 +126,19 @@ ob_start();
 
         <form method="post" action="/cleanup/review" data-selection-form>
             <input type="hidden" name="csrf_token" value="<?= e($csrfToken) ?>">
-            <?php if ($filters['group'] === 'removal'): ?>
-                <div class="selection-toolbar"><span><strong data-selected-count>0</strong> selected</span><span class="selection-actions"><button class="button button-secondary" type="submit" formaction="/reengagement/review" data-reengagement-review-button disabled>Tag for re-engagement</button><button class="button button-danger" type="submit" data-review-button disabled>Review selected for unsubscribe</button></span></div>
+            <input type="hidden" name="selection_group" value="<?= e($filters['group']) ?>">
+            <input type="hidden" name="selection_q" value="<?= e($filters['q']) ?>">
+            <input type="hidden" name="selection_sort" value="<?= e($filters['sort']) ?>">
+            <input type="hidden" name="selection_direction" value="<?= e($filters['direction']) ?>">
+            <input type="hidden" name="selection_mode" value="visible" data-selection-mode>
+            <?php if ($subscriberResult['total'] > 0): ?>
+                <div class="selection-toolbar"><span class="selection-summary"><strong data-selected-count>0</strong> selected <button class="button button-secondary button-compact" type="button" data-clear-selection hidden>Clear selection</button></span><span class="selection-actions"><button class="button button-secondary" type="submit" formaction="/reengagement/review" data-reengagement-review-button disabled>Tag selected for re-engagement</button><button class="button button-danger" type="submit" data-review-button disabled>Review selected for unsubscribe</button></span></div>
+                <div class="selection-notice" data-selection-notice hidden><span data-selection-notice-text>All subscribers on this page are selected.</span><button class="selection-link" type="button" data-select-all-matching data-total="<?= (int) $subscriberResult['total'] ?>">Select all <?= number_format((int) $subscriberResult['total']) ?> matching</button></div>
             <?php endif; ?>
             <div class="table-wrap">
                 <table>
                     <thead><tr>
-                        <?php if ($filters['group'] === 'removal'): ?><th class="check-col"><span class="sr-only">Select</span></th><?php endif; ?>
+                        <th class="check-col"><input type="checkbox" data-select-page aria-label="Select all subscribers on this page"></th>
                         <th>Subscriber</th><th>Subscribed</th><th>Last open</th><th>Last click</th><th>Sent</th><th>Since open / click</th><th>Rates</th>
                     </tr></thead>
                     <tbody>
@@ -141,7 +147,7 @@ ob_start();
                     <?php endif; ?>
                     <?php foreach ($subscriberResult['rows'] as $row): ?>
                         <tr>
-                            <?php if ($filters['group'] === 'removal'): ?><td><input type="checkbox" name="subscriber_ids[]" value="<?= (int) $row['id'] ?>" data-selection></td><?php endif; ?>
+                            <td><input type="checkbox" name="subscriber_ids[]" value="<?= (int) $row['id'] ?>" data-selection></td>
                             <td><div class="subscriber"><span class="avatar"><?= e(strtoupper(substr((string) ($row['first_name'] ?: $row['email_address']), 0, 1))) ?></span><span><strong><?= e($row['email_address']) ?></strong><small><?= e($row['first_name'] ?: 'No first name') ?></small></span></div></td>
                             <td><span title="<?= e($row['created_at']) ?>"><?= e(format_date($row['created_at'])) ?></span><small><?= e(date_age($row['created_at'])) ?></small></td>
                             <td><span title="<?= e($row['last_opened'] ?? '') ?>"><?= e(format_date($row['last_opened'])) ?></span><small><?= e(date_age($row['last_opened'])) ?></small></td>

@@ -138,5 +138,13 @@ $cadenceCandidates = $audit->removalCandidatesByIds([1, 5], $settings);
 if (count($cadenceCandidates) !== 1 || (int) $cadenceCandidates[0]['id'] !== 1) {
     throw new RuntimeException('Broadcast cadence cold-check test failed.');
 }
+$veryColdSelection = $audit->selectedSubscribersByIds([1, 2, 4, 5], 'very-cold', $settings);
+if (count($veryColdSelection) !== 3 || (int) $veryColdSelection[0]['id'] !== 1 || (int) $veryColdSelection[1]['id'] !== 5 || (int) $veryColdSelection[2]['id'] !== 4) {
+    throw new RuntimeException('Very cold selection revalidation test failed.');
+}
+$activeSelection = $audit->selectedSubscribersByIds([1, 3, 4], 'all', $settings);
+if (count($activeSelection) !== 2 || (int) $activeSelection[0]['id'] !== 1 || (int) $activeSelection[1]['id'] !== 4) {
+    throw new RuntimeException('Active selection revalidation test failed.');
+}
 
 echo "Audit service tests passed.\n";

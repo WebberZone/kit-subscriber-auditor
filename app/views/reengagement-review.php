@@ -7,7 +7,7 @@ ob_start();
     <section class="hero hero-small"><div><p class="eyebrow">Re-engagement cohort</p><h1>Review before tagging.</h1><p class="lede">The app will apply the configured Kit tag to this list. It will not send an email or unsubscribe anyone.</p></div></section>
 
     <?php if ($candidates === []): ?>
-        <div class="notice notice-warn">No selected subscribers still match the current removal rule. Return to the audit and refresh the list.</div>
+        <div class="notice notice-warn">No selected subscribers remain in this filtered group. Return to the audit and refresh the list.</div>
         <a class="button button-secondary" href="/">Return to audit</a>
     <?php else: ?>
         <section class="review-card">

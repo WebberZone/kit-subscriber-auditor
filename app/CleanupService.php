@@ -14,7 +14,7 @@ final class CleanupService
     }
 
     /** @return array<string, mixed> */
-    public function start(array $ids, array $settings): array
+    public function start(array $ids, array $settings, string $group = 'removal'): array
     {
         $activeSync = $this->database->fetchOne(
             "SELECT id FROM sync_runs WHERE status IN ('running', 'pending') ORDER BY id DESC LIMIT 1"
@@ -37,14 +37,15 @@ final class CleanupService
             return $this->progress((int) $active['id']);
         }
 
-        $candidates = $this->audit->removalCandidatesByIds($ids, $settings);
+        $candidates = $this->audit->selectedSubscribersByIds($ids, $group, $settings);
         if ($candidates === []) {
-            throw new HttpException('No selected subscribers still match the current removal rule.', 422);
+            throw new HttpException('No selected subscribers still match the current filter.', 422);
         }
 
         $now = utc_now();
         $dryRun = (int) ($settings['dry_run'] ?? 1) === 1;
-        $this->database->transaction(function () use ($candidates, $dryRun, $now): void {
+        $reason = $this->audit->selectionReason($group, $settings);
+        $this->database->transaction(function () use ($candidates, $dryRun, $now, $reason): void {
             $this->database->execute(
                 'INSERT INTO cleanup_jobs (status, dry_run, total_items, created_at, updated_at)
                  VALUES (:status, :dry_run, :total_items, :created_at, :updated_at)',
@@ -76,7 +77,7 @@ final class CleanupService
                         'last_opened' => $subscriber['last_opened'],
                         'last_clicked' => $subscriber['last_clicked'],
                         'sent' => $subscriber['sent'],
-                        'reason' => $this->audit->removalReason($settings),
+                        'reason' => $reason,
                     ]
                 );
             }

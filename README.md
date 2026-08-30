@@ -71,7 +71,7 @@ The worker processes stats sequentially in batches of up to 50 by default. You c
 The re-engagement workflow is intentionally user-timed; it does not assume that a broadcast needs exactly seven days.
 
 1. Create or choose a Kit tag in Settings.
-2. From the Removal candidates view, select the subscribers you want to give one more chance and confirm **Tag for re-engagement**. With OAuth connected, the worker applies the tag in batches of up to 100; with only an API key it applies one subscriber at a time. It stores the cohort locally and does not send anything.
+2. From any filtered dashboard view, use the header checkbox to select the current page. If the view spans multiple pages, the dashboard then offers a Gmail-style **Select all matching** action. Confirm **Tag selected for re-engagement** after reviewing the proposed cohort. With OAuth connected, the worker applies the tag in batches of up to 100; with only an API key it applies one subscriber at a time. It stores the cohort locally and does not send anything.
 3. Draft and send the re-engagement broadcast from Kit, targeting that tag.
 4. When you decide the broadcast has had enough time, choose the actual completed broadcast in Re-engagement and click **Resync tagged subscribers**. The app fetches the tag's current active members and checks their click activity since that broadcast's send time.
 5. Review the resulting stale list. Subscribers who clicked after the selected broadcast are excluded. The stale list hands off to the existing unsubscribe review, CSV export, dry-run, and explicit `UNSUBSCRIBE` confirmation flow.
@@ -92,7 +92,7 @@ The separate **Very cold** view is fixed at no open/click for 365 days and at le
 
 Before a real unsubscribe job can start, the app:
 
-1. Revalidates that selected IDs still match the current candidate rule.
+1. Revalidates that selected IDs are still active and match the filter they came from.
 2. Shows the selected email addresses and engagement data.
 3. Provides a CSV export.
 4. Requires an explicit review checkbox and the phrase `UNSUBSCRIBE`.

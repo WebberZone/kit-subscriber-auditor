@@ -29,6 +29,58 @@ if (str_ends_with(strtok($host, ':') ?: '', '.test') && !$isHttps) {
 if ($isHttps) {
     header('Strict-Transport-Security: max-age=31536000');
 }
+$resolveSelection = static function (array $input) use ($audit, $settings): array {
+    $group = $audit->validateGroup((string) ($input['selection_group'] ?? 'removal'));
+    $mode = (string) ($input['selection_mode'] ?? 'visible');
+    if ($mode === 'all') {
+        $filters = [
+            'q' => trim((string) ($input['selection_q'] ?? '')),
+            'group' => $group,
+            'sort' => (string) ($input['selection_sort'] ?? 'created'),
+            'direction' => (string) ($input['selection_direction'] ?? 'desc'),
+            'page' => 1,
+        ];
+        return [$group, $audit->subscribers($filters, $settings, true)['rows']];
+    }
+    if ($mode !== 'visible') {
+        throw new HttpException('Invalid subscriber selection mode.', 422);
+    }
+
+    $ids = is_array($input['subscriber_ids'] ?? null) ? $input['subscriber_ids'] : [];
+    return [$group, $audit->selectedSubscribersByIds($ids, $group, $settings)];
+};
+$writeSubscriberCsv = static function (array $rows): void {
+    header('Content-Type: text/csv; charset=utf-8');
+    header('Content-Disposition: attachment; filename="kit-subscriber-audit-' . gmdate('Y-m-d') . '.csv"');
+    $output = fopen('php://output', 'wb');
+    if ($output === false) {
+        throw new HttpException('Unable to create the CSV export.', 500);
+    }
+    fputcsv($output, [
+        'Kit ID', 'Email', 'First name', 'State', 'Created at', 'Last sent', 'Last opened',
+        'Last clicked', 'Emails sent', 'Sends since last open', 'Sends since last click', 'Open rate', 'Click rate', 'Stats updated at',
+    ]);
+    foreach ($rows as $row) {
+        fputcsv($output, [
+            csv_safe($row['id']),
+            csv_safe($row['email_address']),
+            csv_safe($row['first_name']),
+            csv_safe($row['state']),
+            csv_safe($row['created_at']),
+            csv_safe($row['last_sent']),
+            csv_safe($row['last_opened']),
+            csv_safe($row['last_clicked']),
+            csv_safe($row['sent']),
+            csv_safe($row['sends_since_last_open']),
+            csv_safe($row['sends_since_last_click']),
+            csv_safe($row['open_rate']),
+            csv_safe($row['click_rate']),
+            csv_safe($row['stats_updated_at']),
+        ]);
+    }
+    fclose($output);
+    exit;
+};
 
 try {
     if ($path === '/login' && $method === 'GET') {
@@ -204,9 +256,9 @@ try {
 
     if ($path === '/reengagement/review' && $method === 'POST') {
         verify_csrf();
-        $ids = is_array($_POST['subscriber_ids'] ?? null) ? $_POST['subscriber_ids'] : [];
-        $candidates = $audit->removalCandidatesByIds($ids, $settings);
+        [$selectionGroup, $candidates] = $resolveSelection($_POST);
         $_SESSION['reengagement_selection'] = array_map(static fn (array $row): int => (int) $row['id'], $candidates);
+        $_SESSION['reengagement_selection_group'] = $selectionGroup;
         $template->render('reengagement-review', [
             'pageTitle' => 'Review re-engagement tag',
             'candidates' => $candidates,
@@ -231,8 +283,10 @@ try {
             throw new HttpException('Confirm that you want to apply the selected Kit tag.', 422);
         }
         $ids = is_array($_SESSION['reengagement_selection'] ?? null) ? $_SESSION['reengagement_selection'] : [];
-        $progress = $reengagement->startTagging($ids, $settings);
+        $selectionGroup = $audit->validateGroup((string) ($_SESSION['reengagement_selection_group'] ?? 'removal'));
+        $progress = $reengagement->startTagging($ids, $settings, $selectionGroup);
         unset($_SESSION['reengagement_selection']);
+        unset($_SESSION['reengagement_selection_group']);
         $reengagement->launchWorker($settings['batch_size'], $projectRoot . '/bin/reengagement-worker.php', $projectRoot . '/storage/reengagement-worker.log');
         json_response($progress);
     }
@@ -262,47 +316,29 @@ try {
             'direction' => (string) ($_GET['direction'] ?? 'desc'),
         ];
         $result = $audit->subscribers($filters, $settings, true);
-        header('Content-Type: text/csv; charset=utf-8');
-        header('Content-Disposition: attachment; filename="kit-subscriber-audit-' . gmdate('Y-m-d') . '.csv"');
-        $output = fopen('php://output', 'wb');
-        if ($output === false) {
-            throw new HttpException('Unable to create the CSV export.', 500);
+        $writeSubscriberCsv($result['rows']);
+    }
+
+    if ($path === '/cleanup/export.csv' && $method === 'GET') {
+        $ids = is_array($_SESSION['cleanup_selection'] ?? null) ? $_SESSION['cleanup_selection'] : [];
+        $selectionGroup = $audit->validateGroup((string) ($_SESSION['cleanup_selection_group'] ?? 'removal'));
+        $rows = $audit->selectedSubscribersByIds($ids, $selectionGroup, $settings);
+        if ($rows === []) {
+            throw new HttpException('The proposed unsubscribe list is no longer available.', 404);
         }
-        fputcsv($output, [
-            'Kit ID', 'Email', 'First name', 'State', 'Created at', 'Last sent', 'Last opened',
-            'Last clicked', 'Emails sent', 'Sends since last open', 'Sends since last click', 'Open rate', 'Click rate', 'Stats updated at',
-        ]);
-        foreach ($result['rows'] as $row) {
-            fputcsv($output, [
-                csv_safe($row['id']),
-                csv_safe($row['email_address']),
-                csv_safe($row['first_name']),
-                csv_safe($row['state']),
-                csv_safe($row['created_at']),
-                csv_safe($row['last_sent']),
-                csv_safe($row['last_opened']),
-                csv_safe($row['last_clicked']),
-                csv_safe($row['sent']),
-                csv_safe($row['sends_since_last_open']),
-                csv_safe($row['sends_since_last_click']),
-                csv_safe($row['open_rate']),
-                csv_safe($row['click_rate']),
-                csv_safe($row['stats_updated_at']),
-            ]);
-        }
-        fclose($output);
-        exit;
+        $writeSubscriberCsv($rows);
     }
 
     if ($path === '/cleanup/review' && $method === 'POST') {
         verify_csrf();
-        $ids = is_array($_POST['subscriber_ids'] ?? null) ? $_POST['subscriber_ids'] : [];
-        $candidates = $audit->removalCandidatesByIds($ids, $settings);
+        [$selectionGroup, $candidates] = $resolveSelection($_POST);
         $_SESSION['cleanup_selection'] = array_map(static fn (array $row): int => (int) $row['id'], $candidates);
+        $_SESSION['cleanup_selection_group'] = $selectionGroup;
         $template->render('cleanup-review', [
             'pageTitle' => 'Review unsubscribe list',
             'candidates' => $candidates,
             'settings' => $settings,
+            'selectionGroup' => $selectionGroup,
             'csrfToken' => csrf_token(),
             'flashMessages' => consume_flash(),
             'apiConfigured' => $kit->hasCredentials(),
@@ -324,8 +360,10 @@ try {
             throw new HttpException('Connect Kit via OAuth or configure an API key in Settings before starting cleanup.', 422);
         }
         $ids = is_array($_SESSION['cleanup_selection'] ?? null) ? $_SESSION['cleanup_selection'] : [];
-        $progress = $cleanup->start($ids, $settings);
+        $selectionGroup = $audit->validateGroup((string) ($_SESSION['cleanup_selection_group'] ?? 'removal'));
+        $progress = $cleanup->start($ids, $settings, $selectionGroup);
         unset($_SESSION['cleanup_selection']);
+        unset($_SESSION['cleanup_selection_group']);
         json_response($progress);
     }
 
