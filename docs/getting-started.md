@@ -7,11 +7,12 @@ permalink: /docs/getting-started/
 ## Requirements
 
 - PHP 8.3 or newer
-- PHP extensions: `curl`, `openssl`, `pdo_sqlite`, and `sodium`
+- SQLite 3 for local storage. No MySQL or separate database server is required.
+- PHP extensions: `curl`, `openssl`, `pdo_sqlite` (PHP's SQLite driver), and `sodium`
 - Kit v4 API key
 - Herd, Apache, Nginx, or another PHP-capable local server
 
-The application has no runtime Composer dependencies. Composer is used for the test and release commands.
+The application has no runtime Composer dependencies. Composer is used for the test and release commands. The app creates and migrates `storage/app.sqlite` automatically on first run, so there is no database service to configure.
 
 ## Install with Herd
 

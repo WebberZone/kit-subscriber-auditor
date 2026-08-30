@@ -37,7 +37,8 @@ See Kit's official [API documentation](https://developers.kit.com/api-reference)
 Requirements:
 
 - PHP 8.3 or newer.
-- PHP extensions: `curl`, `pdo_sqlite`, and `openssl`.
+- SQLite 3 for local storage. You do not need to install or manage a separate database server; the app creates `storage/app.sqlite` automatically.
+- PHP extensions: `curl`, `pdo_sqlite` (PHP's SQLite driver), and `openssl`.
 - Herd or another HTTPS-capable PHP server.
 
 From the repository root:
